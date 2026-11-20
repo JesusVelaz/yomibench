@@ -17,7 +17,7 @@ Your nets, packed with the harness. The one-PC training loop names its current b
 (its `model` field):
 
 ```
-yomibench bundle pack --name my-bot-1 --owner your-github-login --value PATH/TO/BEST_MODEL.npz
+yomibench bundle pack --name my-bot-1 --owner your-github-username --value PATH/TO/BEST_MODEL.npz
 ```
 
 The Arena's search needs a value net (`--value`). A policy net (`--policy policy.npz`) is optional; with one, your
@@ -28,14 +28,14 @@ bot can prune its search (see Settings). Nets are arrays only and load with `all
 A small JSON object:
 
 ```json
-{"name": "my-bot-1", "owner": "your-github-login", "bundle_sha256": "<sha256 of the zip>", "candidate_set": 6,
+{"name": "my-bot-1", "owner": "your-github-username", "bundle_sha256": "<sha256 of the zip>", "candidate_set": 6,
  "settings": {}, "notes": "trained 2 days on one PC"}
 ```
 
 | Key | What it is |
 | --- | --- |
 | `name` | The bundle's name: 1-40 of a-z 0-9 . _ -, starting and ending with a letter or digit. A new version needs a new name (`my-bot-2`). Names of house generations (`gen-13`, `g13`) and built-in bots are reserved. |
-| `owner` | Your GitHub login. It must be the account that opens the submission. |
+| `owner` | Your GitHub username: the name in your profile's address (`github.com/USERNAME`), not your display name. It must be the account you open the submission from; any other name is refused. |
 | `bundle_sha256` | The zip's sha256: `sha256sum my-bot-1.zip`, or on Windows `(Get-FileHash my-bot-1.zip).Hash.ToLower()`. |
 | `candidate_set` | The candidate set your nets were trained on. It must be the Arena's (6 today, in `arena/spec.json`). |
 | `settings` | Optional. See below. |

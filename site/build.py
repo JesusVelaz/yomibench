@@ -319,6 +319,51 @@ def tile(value, name, sub="", big=False) -> str:
             f'<span class="tval">{value}</span>{f"<span class=tsub>{sub}</span>" if sub else ""}</div>')
 
 
+# Prompts a visitor pastes into a coding agent (Claude Code, Codex, Cursor...). They point the agent at the repo's
+# own guides rather than restating them, so they stay right when a command changes.
+PROMPT_START = f"""Help me train a bot for yomibench and enter it in the Arena. yomibench is an open-source bot arena \
+for the game Your Only Move Is HUSTLE: {REPO}
+
+Work from the project's own guides; don't guess commands. Clone the repository, then read README.md, \
+docs/SETUP.md, docs/TRAINING.md and docs/SUBMIT.md.
+
+1. Check what I need: the game installed through Steam (docs/SETUP.md says which versions and systems work), \
+Python 3.11 or newer, uv and git. Tell me what's missing and how to install it.
+2. Install with `uv sync --extra train --extra test` and run the tests (`uv run pytest -q`). Tell me if anything \
+fails.
+3. Before you start training, tell me how much of my PC it will use (cores and memory) and roughly how long it \
+runs, and wait for my go-ahead. Training runs copies of the game in the background.
+4. When training has a best net (OUT/best.json names it), help me submit it by following docs/SUBMIT.md.
+
+Explain each step in plain words. Never ask me for passwords or tokens; I'll sign in to GitHub myself."""
+
+PROMPT_SUBMIT = f"""Help me submit my yomibench bot to the Arena. Work in my clone of {REPO} (clone it if I don't \
+have one) and follow docs/SUBMIT.md exactly; don't guess commands.
+
+1. Ask me for my GitHub username (the name in github.com/USERNAME, for the account I'll open the submission from; \
+not my display name) and a name for my bot (1-40 of a-z 0-9 . _ -, like my-bot-1).
+2. Find my best net: the training loop names it in OUT/best.json, in its "model" field (OUT is ~/.yomibench/train \
+unless I chose another --out). Ask me if you can't find it.
+3. Pack it: `uv run yomibench bundle pack --name BOT-NAME --owner GITHUB-USERNAME --value PATH/TO/MODEL.npz`. Add \
+`--policy` only if I have a policy net.
+4. Write entry.json with name, owner, bundle_sha256 (the zip's sha256, lowercase), candidate_set (from \
+arena/spec.json), "settings": {{}} and, if I want, notes.
+5. Run `uv run python tools/validate_submission.py entry.json BOT-NAME.zip` and fix anything it reports.
+6. Then tell me exactly what to paste into the submission form ({FORM}) and which file to drag in. Don't open the \
+issue yourself.
+
+Explain each step in plain words. Never ask me for passwords or tokens."""
+
+
+def agent_prompt(key: str, blurb: str, prompt: str) -> str:
+    """A prompt box with a Copy button (COPY wires it; without script the text can still be selected)."""
+    pid = f"prompt-{key}"
+    return (f'<section class="agent" aria-labelledby="{pid}-h"><div class="agenthead"><div><p class="eyebrow">Agent '
+            f'prompt</p><h2 id="{pid}-h">Let an AI agent walk you through it</h2><p class="small">{esc(blurb)}</p>'
+            f'</div><button type="button" class="button copy" data-copy="{pid}">Copy prompt</button></div>'
+            f'<pre class="cmd prompt" id="{pid}" tabindex="0"><code>{esc(prompt)}</code></pre></section>')
+
+
 def meter(x) -> str:
     w = 0 if x is None else max(0, min(100, round(100 * x)))
     return f'<span class="meter" aria-hidden="true"><i style="width:{w}%"></i></span>'
@@ -817,9 +862,13 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
               "/lab/training/", "Training guide", "uv run python tools/train_loop.py \\\n  --out ~/.yomibench/train"),
              ("Submit it", "Pack your best net (named in OUT/best.json) into a bundle and enter it in the Arena. The "
               "checks are live; rated matches open soon.", "/submit/", "How to submit",
-              "uv run yomibench bundle pack \\\n  --name my-bot-1 \\\n  --owner YOUR-LOGIN \\\n  --value BEST_MODEL.npz")]
+              "uv run yomibench bundle pack \\\n  --name my-bot-1 \\\n  --owner YOUR-GITHUB-USERNAME \\\n  --value BEST_MODEL.npz")]
     body = ('<header class="pagehead"><p class="eyebrow">Get started</p><h1>Train a bot and enter it</h1><p class="lead">'
-            'Three steps from your copy of the game to a bot in the Arena.</p></header><ol class="steps">'
+            'Three steps from your copy of the game to a bot in the Arena.</p></header>'
+            + agent_prompt("start", "Paste this into a coding agent (Claude Code, Codex, Cursor and the like) and it "
+                           "walks you through setup, training and submitting, from the guides on this site.",
+                           PROMPT_START)
+            + '<ol class="steps">'
             + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd"><code>{esc(c)}</code></pre>'
                       f'<a class="more" href="{L(h)}">{esc(lk)} →</a></li>' for t, d, h, lk, c in steps) + "</ol>")
     routes["/get-started/"] = ("Get started", "start", body)
@@ -858,7 +907,10 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
                    f'</span></div><a class="button" href="{FORM}">Open the submission form</a></div>'
                    '<div class="tiles">' + tile("Data only", "Phase 1", "nets and settings, never code")
                    + tile("Same budget", "Every bot", "fixed ranked settings")
-                   + tile("Automatic", "Checks", "size, contents, a test position") + "</div>")
+                   + tile("Automatic", "Checks", "size, contents, a test position") + "</div>"
+                   + agent_prompt("submit", "Already have a trained net? Paste this into a coding agent and it packs "
+                                  "your bundle, writes your entry, runs the checks and tells you what to put in the "
+                                  "form.", PROMPT_SUBMIT))
         if path == "/get-started/setup/":
             top = f'<nav class="crumbs"><a href="{L("/get-started/")}">← Get started</a></nav>'
         sub = subnav(path) if sections[path] == "lab" else ""
@@ -910,6 +962,15 @@ FOOTER = ('<footer class="foot"><div class="footin"><p><b>yomibench</b> is open 
 MOTION = ('<script>function yomiPlay(){if(!matchMedia("(prefers-reduced-motion: reduce)").matches)'
           'document.querySelectorAll("video[data-autoplay]").forEach(function(v){v.muted=true;v.play().catch(function()'
           '{})})}yomiPlay()</script>')
+# Copy buttons (button[data-copy] names the element whose text it copies). Delegated, so it also works on the
+# one-file preview's routes; falls back to selecting the text where the clipboard isn't available.
+COPY = ('<script>document.addEventListener("click",function(e){var b=e.target.closest("button[data-copy]");if(!b)return;'
+        'var t=document.getElementById(b.dataset.copy);if(!t)return;function done(m){var o=b.dataset.label||b.textContent;'
+        'b.dataset.label=o;b.textContent=m;setTimeout(function(){b.textContent=o},1800)}function pick(){var r=document'
+        '.createRange();r.selectNodeContents(t);var s=getSelection();s.removeAllRanges();s.addRange(r);'
+        'try{done(document.execCommand("copy")?"Copied":"Press Ctrl+C")}catch(x){done("Press Ctrl+C")}}'
+        'if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t.textContent).then(function()'
+        '{done("Copied")},pick)}else{pick()}})</script>')
 
 
 def write_pages(out: Path, routes, notfound: str, site_url: str) -> None:
@@ -926,7 +987,7 @@ def write_pages(out: Path, routes, notfound: str, site_url: str) -> None:
                 + f'<link rel="icon" href="{ICON}"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
                 f'<link rel="stylesheet" href="{FONTS}"><link rel="stylesheet" href="{css}"></head><body>')
         page = (head + HEADER.format(home=L("/"), nav=nav_html(section)) + f'<main id="main" class="wrap">{body}</main>'
-                + FOOTER + MOTION + "</body></html>")
+                + FOOTER + MOTION + COPY + "</body></html>")
         return page
 
     for path, (title, section, body) in routes.items():
@@ -983,7 +1044,7 @@ def write_spa(spa: Path, routes, notfound: str, title: str = "yomibench", head: 
             f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="{FONTS}">'
             '<link rel="stylesheet" href="style.css">\n'
             + HEADER.format(home=L("/"), nav=nav_html("arena")) + '<main id="main" class="wrap"></main>' + FOOTER
-            + tpl + MOTION + SPA_SCRIPT)
+            + tpl + MOTION + COPY + SPA_SCRIPT)
     spa.write_text(resolve(page, "/", True), encoding="utf-8")
 
 
