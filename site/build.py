@@ -364,6 +364,14 @@ def agent_prompt(key: str, blurb: str, prompt: str) -> str:
             f'<pre class="cmd prompt" id="{pid}" tabindex="0"><code>{esc(prompt)}</code></pre></section>')
 
 
+def copy_button(target: str, cmd: str, label: str) -> str:
+    """A Copy button for a command box. It copies the commands with `\\` line continuations joined, so the text
+    pastes into PowerShell as well as a POSIX shell; the box still shows them split for reading."""
+    one_line = re.sub(r"[ \t]*\\\n[ \t]*", " ", cmd)
+    return (f'<button type="button" class="copy cmdcopy" data-copy="{target}" data-copy-text="{esc(one_line)}" '
+            f'aria-label="{esc(label)}">Copy</button>')
+
+
 def meter(x) -> str:
     w = 0 if x is None else max(0, min(100, round(100 * x)))
     return f'<span class="meter" aria-hidden="true"><i style="width:{w}%"></i></span>'
@@ -869,8 +877,10 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
                            "walks you through setup, training and submitting, from the guides on this site.",
                            PROMPT_START)
             + '<ol class="steps">'
-            + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd"><code>{esc(c)}</code></pre>'
-                      f'<a class="more" href="{L(h)}">{esc(lk)} →</a></li>' for t, d, h, lk, c in steps) + "</ol>")
+            + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><div class="cmdbox"><pre class="cmd" id="step-{i}"><code>'
+                      f'{esc(c)}</code></pre>{copy_button(f"step-{i}", c, f"Copy the commands for step {i}")}</div>'
+                      f'<a class="more" href="{L(h)}">{esc(lk)} →</a></li>'
+                      for i, (t, d, h, lk, c) in enumerate(steps, 1)) + "</ol>")
     routes["/get-started/"] = ("Get started", "start", body)
 
     # docs and write-ups -----------------------------------------------------------------------------------------
@@ -962,15 +972,17 @@ FOOTER = ('<footer class="foot"><div class="footin"><p><b>yomibench</b> is open 
 MOTION = ('<script>function yomiPlay(){if(!matchMedia("(prefers-reduced-motion: reduce)").matches)'
           'document.querySelectorAll("video[data-autoplay]").forEach(function(v){v.muted=true;v.play().catch(function()'
           '{})})}yomiPlay()</script>')
-# Copy buttons (button[data-copy] names the element whose text it copies). Delegated, so it also works on the
-# one-file preview's routes; falls back to selecting the text where the clipboard isn't available.
+# Copy buttons: button[data-copy] names the element whose text it copies, unless data-copy-text gives the exact text
+# (a command box's one-line form). Delegated, so it also works on the one-file preview's routes; where the clipboard
+# API isn't available (a page opened from a file), it copies through a hidden text box.
 COPY = ('<script>document.addEventListener("click",function(e){var b=e.target.closest("button[data-copy]");if(!b)return;'
-        'var t=document.getElementById(b.dataset.copy);if(!t)return;function done(m){var o=b.dataset.label||b.textContent;'
-        'b.dataset.label=o;b.textContent=m;setTimeout(function(){b.textContent=o},1800)}function pick(){var r=document'
-        '.createRange();r.selectNodeContents(t);var s=getSelection();s.removeAllRanges();s.addRange(r);'
-        'try{done(document.execCommand("copy")?"Copied":"Press Ctrl+C")}catch(x){done("Press Ctrl+C")}}'
-        'if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t.textContent).then(function()'
-        '{done("Copied")},pick)}else{pick()}})</script>')
+        'var t=document.getElementById(b.dataset.copy);if(!t)return;var x=b.dataset.copyText||t.textContent;'
+        'function done(m){var o=b.dataset.label||b.textContent;b.dataset.label=o;b.textContent=m;'
+        'setTimeout(function(){b.textContent=o},1800)}function pick(){var a=document.createElement("textarea");a.value=x;'
+        'a.setAttribute("readonly","");a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);'
+        'a.select();var ok=false;try{ok=document.execCommand("copy")}catch(_){}a.remove();done(ok?"Copied":"Copy failed")}'
+        'if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(x).then(function(){done("Copied")},'
+        'pick)}else{pick()}})</script>')
 
 
 def write_pages(out: Path, routes, notfound: str, site_url: str) -> None:

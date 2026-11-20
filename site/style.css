@@ -225,6 +225,11 @@ details.panel[open] > summary { margin-bottom: var(--s3); }
 .agenthead > div { display: flex; flex-direction: column; gap: 4px; max-width: 64ch; }
 .agenthead h2 { font-size: var(--fs-md); }
 .copy { border: 0; cursor: pointer; font: inherit; font-weight: 600; min-width: 9.5em; justify-content: center; }
+.cmdbox { position: relative; }
+.cmdbox .cmd { padding-right: 76px; }
+.cmdcopy { position: absolute; top: 6px; right: 6px; min-width: 4.6em; padding: 4px 10px; border: 1px solid var(--line-2); border-radius: var(--r-sm);
+           background: var(--panel); color: var(--ink-2); font: 600 var(--fs-xs) var(--body); cursor: pointer; }
+.cmdcopy:hover { color: var(--accent-ink); border-color: var(--accent); }
 .prompt { max-height: 18em; overflow-y: auto; }
 
 /* docs */
