@@ -21,7 +21,8 @@ after N cycles; the default keeps going.
 ## Starting from our weights
 
 The real game is slow: one PC plays tens to low hundreds of games an hour. Starting from scratch takes days before
-the first promotions. To continue from HustleBot's published weights (each release's `gen-N.npz`) instead:
+the first promotions. To continue from HustleBot's published weights instead (each release's `gen-N.npz`;
+weights are published two generations behind the current best):
 
 ```
 uv run python tools/train_loop.py --out ~/.yomibench/train --start-from gen-N.npz

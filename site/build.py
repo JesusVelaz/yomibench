@@ -155,6 +155,7 @@ def results(rels: list[dict], rows: list[dict] = ()) -> list[tuple[str, str, flo
 
 
 # --- ratings ---------------------------------------------------------------------------------------------------
+WEIGHTS_LAG = 2  # HustleBot's weights are published this many generations behind the current best
 ARENA_ONLY_GAMES = 100  # per bot, in the current spec's era, before the Arena rates on its own games alone
 PRIOR_GAMES = 2  # each player also drew this many games against a fixed reference: keeps a perfect score finite
 
@@ -516,6 +517,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
     scale = (min(ci[b][0] for b in board), max(ci[b][1] for b in board)) if board else (0, 1)
     cur = rels[-1] if rels else None
     base_bot = house(rels[0]["generation"]) if rels else None
+    # HustleBot's weights are published two generations behind the current best: the newest two have none public.
+    weights_lag = {house(r["generation"]) for r in rels[-WEIGHTS_LAG:]}
     routes: dict[str, tuple[str, str, str]] = {}  # path -> (title, section, body)
 
     # Arena (home) ------------------------------------------------------------------------------------------------
@@ -553,7 +556,7 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
                     + era_label(json.loads(era_key)))
             trs.append(f'<tr class="erarow"><td colspan="5">{esc(name)}</td></tr>')
         for k, b in enumerate(members, 1):
-            owner = "" if is_house(b) else f'<span class="era">by {esc(owners.get(b) or "—")}</span>'
+            owner = ('<span class="era">house bot, weights not public</span>' if b in weights_lag else "")                 if is_house(b) else f'<span class="era">by {esc(owners.get(b) or "—")}</span>'
             trs.append(f'<tr{" class=top1" if k == 1 else ""}><td class="rank">{k}</td>'
                        f'<th scope="row"><a class="botname" href="{L(bot_route(b))}"><span class="full">{esc(label(b))}'
                        f'</span><span class="shortn">{esc(short(b))}</span></a>{owner}</th>'
@@ -661,7 +664,9 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
         by_char = ("".join(tile(f"{th:.0f}", f"as {c}", f"{lo:.0f} to {hi:.0f} · {n} games"
                                 + (" · provisional" if prov else "")) for c, (th, lo, hi, n, prov) in mine))
         notes = f'<p class="lead">{esc(entry["notes"])}</p>' if entry and entry.get("notes") else ""
-        links = (f' · <a href="{REPO}/releases/tag/gen-{r["generation"]}">release and weights</a>' if r else "")
+        links = ((f' · <a href="{REPO}/releases/tag/gen-{r["generation"]}">release</a> · house bot, weights not public'
+                  if b in weights_lag else
+                  f' · <a href="{REPO}/releases/tag/gen-{r["generation"]}">release and weights</a>') if r else "")
         tiles = (tile(f"{point[b]:.0f}", "Rating", ci_text(b, ci, base_bot), True)
                  + tile(f"#{board.index(b) + 1}", "Rank", f"of {len(board)}") + tile(str(played[b]), "Games")
                  + tile(pct(scored[b] / played[b] if played[b] else None), "Score", "share of points"))
@@ -807,7 +812,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
               "Clone the repository, then follow the setup guide.", "/get-started/setup/", "Setup guide",
               f"git clone {REPO}\ncd yomibench\nuv sync --extra train"),
              ("Train your own on one PC", "One command runs the whole loop on one machine: self-play in headless "
-              "copies of your game, training, and a promotion test. Start from scratch or from a published generation.",
+              "copies of your game, training, and a promotion test. Start from scratch or from a published generation "
+              "(weights are published two generations behind the current best).",
               "/lab/training/", "Training guide", "uv run python tools/train_loop.py \\\n  --out ~/.yomibench/train"),
              ("Submit it", "Pack your best net (named in OUT/best.json) into a bundle and enter it in the Arena. The "
               "checks are live; rated matches open soon.", "/submit/", "How to submit",

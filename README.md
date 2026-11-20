@@ -51,7 +51,8 @@ More: [docs/METHODOLOGY.md](docs/METHODOLOGY.md).
   Nothing from the game is included here; headless copies are made from your install, on your PC.
 - **Speed:** the real game is slow to simulate. One PC plays tens to low hundreds of games an hour.
 - **HustleBot's nets** were trained with a private fast simulator that isn't part of this repository. They're
-  offered as starter weights, so you can continue from them instead of starting from scratch.
+  offered as starter weights, so you can continue from them instead of starting from scratch. Weights are
+  published two generations behind the current best: the newest two generations' nets stay private.
 - **Never use bots online.** The mod refuses online sessions and lobbies; it only plays locally against you.
 
 ## Docs

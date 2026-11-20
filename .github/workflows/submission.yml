@@ -36,13 +36,17 @@ jobs:
             curl -fsSL --proto '=https' --proto-redir '=https' --max-redirs 5 --connect-timeout 15 --max-time 120 \
               --max-filesize 26214400 -o "$RUNNER_TEMP/bundle.zip" "$url" || true
           fi
+      - name: Fetch the house models' array hashes (hashes only; HustleBot's own nets can't be entered)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download house-hashes --repo "$GITHUB_REPOSITORY" --pattern house-hashes.json --dir "$RUNNER_TEMP"
       - name: Validate
         env:
           AUTHOR: ${{ github.event.issue.user.login }}
         run: |
           mkdir -p result
           python tools/validate_submission.py --issue-body "$RUNNER_TEMP/body.md" --bundle "$RUNNER_TEMP/bundle.zip" \
-            --issue-author "$AUTHOR" --json > result/result.json || true
+            --issue-author "$AUTHOR" --house-hashes "$RUNNER_TEMP/house-hashes.json" --json > result/result.json || true
           python -c "import json; r = json.load(open('result/result.json')); print('valid' if r['valid'] else 'not valid: %d problems' % len(r['problems']))"
       - uses: actions/upload-artifact@v4
         with:

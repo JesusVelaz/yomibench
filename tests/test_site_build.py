@@ -145,3 +145,11 @@ def test_ratings_by_character_use_arena_games_and_only_cowboy_gates(tmp_path):
     home = read(site(tmp_path, rels), "/")
     assert "Rating by character" in home and 'id="ct-Robot"' in home and "provisional" in home
     assert "all 25 character pairings equally" in home
+
+
+def test_the_newest_two_generations_have_no_public_weights(tmp_path):
+    rels = [rel(2, 1, 0.7, 200), rel(3, 2, 0.6, 200), rel(4, 3, 0.55, 240)]
+    out = site(tmp_path, rels)
+    assert "house bot, weights not public" in read(out, "/bots/g4/") and "house bot, weights not public" in read(out, "/bots/g3/")
+    assert "release and weights" in read(out, "/bots/g2/") and "weights not public" not in read(out, "/bots/g2/")
+    assert read(out, "/").count("house bot, weights not public") == 2

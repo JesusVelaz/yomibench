@@ -64,6 +64,8 @@ These are the same checks the form runs:
 - the bundle's size (25 MB at most) and contents, and every net's size, with nothing loaded before it's measured;
 - its format and file hashes, and that each net loads;
 - that every weight is a finite number and the value net can score a position;
+- that your nets aren't HustleBot's own (checked by their arrays against the house models, published or not:
+  weights are published two generations behind the current best, and entering them as yours is refused);
 - that the nets' features version and your candidate set are the ones the Arena plays;
 - the entry's keys, types and ranges.
 

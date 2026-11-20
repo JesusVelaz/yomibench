@@ -128,3 +128,28 @@ def test_bundles_are_bounded_and_nets_must_be_able_to_play(nets, tmp_path):  # n
         np.lib.format.write_array_header_1_0(buf, header)
         z.writestr("w1.npy", buf.getvalue())
     assert any("MB of arrays" in b for b in vs.check_net_file(big))
+
+
+def test_a_house_models_weights_are_refused_whatever_its_metadata(nets, tmp_path):  # noqa: F811
+    import numpy as np
+
+    value, _ = nets
+    house = tmp_path / "house-hashes.json"
+    house.write_text(json.dumps({"hashes": [vs.array_hash(value)]}))
+    # the same arrays with other metadata (a "trimmed" copy) still match
+    with np.load(value, allow_pickle=False) as f:
+        arrays = {k: f[k] for k in f.files}
+    meta = json.loads(str(arrays.pop("meta")))
+    meta["note"] = "repacked"
+    copy = tmp_path / "copy.npz"
+    np.savez(copy, meta=np.array(json.dumps(meta)), **arrays)
+    assert vs.array_hash(copy) == vs.array_hash(value)
+    z = tmp_path / "ours-v1.zip"
+    ladder.pack("ours-v1", "Someone", copy, None, z)
+    entry = {**GOOD, "settings": {}, "bundle_sha256": sha(z)}
+    bad, _ = vs.validate(entry, z, house=vs.load_house_hashes(house))
+    assert any("HustleBot's weights" in b for b in bad)
+    assert vs.validate(entry, z, house=set())[0] == []  # without the list, the same bundle is fine
+    other = tmp_path / "other.npz"  # one weight changed: a different net
+    np.savez(other, meta=np.array(json.dumps(meta)), **{k: (v + 1e-3 if k == "w1" else v) for k, v in arrays.items()})
+    assert vs.array_hash(other) != vs.array_hash(value)

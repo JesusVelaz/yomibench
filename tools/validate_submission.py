@@ -19,6 +19,7 @@ Checks, in order, each bounded before anything is allocated:
 - every weight finite, and one forward pass of the value net on a zero position of the right width, so a net that
   is missing a tensor or has mismatched shapes can't pass;
 - the nets' features version and the entry's candidate set are the ones arena/spec.json pins;
+- no net is one of HustleBot's own (its arrays' hash isn't in the house list, published or not);
 - the entry's schema (allowed keys only, types and ranges); its name isn't reserved (house generations and their
   page names, built-in bots, device names) or already entered with other files (arena/bots.json); on an issue, the
   owner is the issue's author.
@@ -227,6 +228,28 @@ def check_value_net(path: Path) -> list[str]:
     return []
 
 
+def array_hash(path: Path) -> str:
+    """A net's identity by its arrays alone: sha256 over every array but `meta`, in name order (name, dtype, shape,
+    bytes). Repacking the file or changing its metadata doesn't change it; a house model can't pass as an entry."""
+    import numpy as np
+
+    h = hashlib.sha256()
+    with np.load(path, allow_pickle=False) as z:
+        for k in sorted(n for n in z.files if n != "meta"):
+            a = np.ascontiguousarray(z[k])
+            h.update(f"{k}|{a.dtype.str}|{a.shape}|".encode())
+            h.update(a.tobytes())
+    return h.hexdigest()
+
+
+def load_house_hashes(path: Path | None) -> set[str]:
+    """The house models' array hashes (a list of hashes only, published as the `house-hashes` release's asset)."""
+    if path is None or not path.exists():
+        return set()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {h for h in data.get("hashes", []) if isinstance(h, str) and re.fullmatch(r"[0-9a-f]{64}", h)}
+
+
 def check_policy_net(path: Path) -> list[str]:
     import numpy as np
 
@@ -241,7 +264,8 @@ def check_policy_net(path: Path) -> list[str]:
     return []
 
 
-def validate(entry: object, bundle: Path, author: str | None = None) -> tuple[list[str], dict | None]:
+def validate(entry: object, bundle: Path, author: str | None = None,
+             house: set[str] | None = None) -> tuple[list[str], dict | None]:
     """(problems, the bundle's manifest when it checked out)."""
     from yomibench.ladder import LadderError, _verify_dir
 
@@ -268,6 +292,9 @@ def validate(entry: object, bundle: Path, author: str | None = None) -> tuple[li
         if "value.npz" not in manifest["files"]:
             return bad + ["the Arena's search needs a value net (value.npz) in the bundle"], manifest
         bad += check_value_net(d / "value.npz")
+        for f in ("value.npz", "policy.npz"):  # HustleBot's own nets, published or not, can't be entered
+            if house and (d / f).exists() and array_hash(d / f) in house:
+                bad.append(f"{f}: these are HustleBot's weights (a house model); submit nets you trained")
         if "policy.npz" in manifest["files"]:
             bad += check_policy_net(d / "policy.npz")
     finally:
@@ -336,6 +363,7 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true", help="print the result as JSON")
     ap.add_argument("--bundle-url", action="store_true", help="with --issue-body: print the bundle's link and stop")
     ap.add_argument("--render-comment", type=Path, metavar="RESULT.json", help="print the issue comment for a result")
+    ap.add_argument("--house-hashes", type=Path, help="the house models' array hashes (house-hashes.json)")
     a = ap.parse_args(argv)
     if a.render_comment:
         print(render_comment(json.loads(a.render_comment.read_text(encoding="utf-8"))), end="")
@@ -361,7 +389,7 @@ def main(argv=None) -> int:
     except (OSError, ValueError) as e:
         entry, bad, manifest = None, [f"entry: {q(e, 160)}"], None
     else:
-        bad, manifest = (validate(entry, bundle, a.issue_author) if bundle else
+        bad, manifest = (validate(entry, bundle, a.issue_author, load_house_hashes(a.house_hashes)) if bundle else
                          (check_entry(entry, a.issue_author, _json(BOTS) or []) + ["no bundle given"], None))
     out = {"valid": not bad, "problems": bad, "body_sha256": body_sha,
            "bundle": {k: manifest.get(k) for k in ("name", "digest")} if manifest else None}
