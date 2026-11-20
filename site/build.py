@@ -355,22 +355,32 @@ issue yourself.
 Explain each step in plain words. Never ask me for passwords or tokens."""
 
 
-def agent_prompt(key: str, blurb: str, prompt: str) -> str:
-    """A prompt box with a Copy button (COPY wires it; without script the text can still be selected)."""
+COPY_ICON = ('<svg viewBox="0 0 24 24" aria-hidden="true"><g class="cp"><rect x="8" y="8" width="14" height="14" rx="2"/>'
+             '<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></g><path class="ok" d="M5 12l5 5L20 7"/></svg>')
+BOT_ICON = ('<svg class="boticon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"/>'
+            '<path d="M12 4v4M9 13h.01M15 13h.01M9 17h6"/></svg>')
+
+
+def copy_button(target: str, label: str, text: str | None = None, small: bool = False) -> str:
+    """An icon copy button (COPY wires it). It copies `text` when given, else the text of the element `target`."""
+    extra = f' data-copy-text="{esc(text)}"' if text is not None else ""
+    return (f'<button type="button" class="iconbtn{" sm" if small else ""}" data-copy="{target}"{extra} '
+            f'aria-label="{esc(label)}" data-tip="{esc(label)}">{COPY_ICON}</button>')
+
+
+def one_line(cmd: str) -> str:
+    """Commands with their `\\` line continuations joined, so they paste into PowerShell as well as a POSIX shell."""
+    return re.sub(r"[ \t]*\\\n[ \t]*", " ", cmd)
+
+
+def agent_prompt(key: str, title: str, blurb: str, prompt: str) -> str:
+    """The agent prompt as one slim bar, closed by default. The copy button sits outside the <summary> (a button
+    inside one is a control within a control), positioned over the bar, so it copies without opening it."""
     pid = f"prompt-{key}"
-    return (f'<section class="agent" aria-labelledby="{pid}-h"><div class="agenthead"><div><p class="eyebrow">Agent '
-            f'prompt</p><h2 id="{pid}-h">Let an AI agent walk you through it</h2><p class="small">{esc(blurb)}</p>'
-            f'</div><button type="button" class="button copy" data-copy="{pid}">Copy prompt</button></div>'
-            f'<pre class="cmd prompt" id="{pid}" tabindex="0"><code>{esc(prompt)}</code></pre></section>')
-
-
-def copy_button(target: str, cmd: str, label: str) -> str:
-    """A Copy button for a command box (it goes inside the box's <pre>, floated beside the first line). It copies the
-    commands with `\\` line continuations joined, so the text pastes into PowerShell as well as a POSIX shell; the box
-    still shows them split for reading. The text comes from data-copy-text, never the box, so the label isn't copied."""
-    one_line = re.sub(r"[ \t]*\\\n[ \t]*", " ", cmd)
-    return (f'<button type="button" class="copy cmdcopy" data-copy="{target}" data-copy-text="{esc(one_line)}" '
-            f'aria-label="{esc(label)}">Copy</button>')
+    return (f'<div class="agent"><details><summary>{BOT_ICON}<span class="agentt"><b>{esc(title)}</b>'
+            f'<span>{esc(blurb)}</span></span><span class="tog"><span class="s">Show<span class="wide"> prompt</span></span><span class="h">Hide'
+            f'</span></span></summary><div class="agentbody"><pre class="cmd prompt" id="{pid}" tabindex="0"><code>'
+            f'{esc(prompt)}</code></pre></div></details>{copy_button(pid, "Copy prompt")}</div>')
 
 
 def meter(x) -> str:
@@ -874,12 +884,11 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
               "uv run yomibench bundle pack \\\n  --name my-bot-1 \\\n  --owner YOUR-GITHUB-USERNAME \\\n  --value BEST_MODEL.npz")]
     body = ('<header class="pagehead"><p class="eyebrow">Get started</p><h1>Train a bot and enter it</h1><p class="lead">'
             'Three steps from your copy of the game to a bot in the Arena.</p></header>'
-            + agent_prompt("start", "Paste this into a coding agent (Claude Code, Codex, Cursor and the like) and it "
-                           "walks you through setup, training and submitting, from the guides on this site.",
-                           PROMPT_START)
+            + agent_prompt("start", "Prompt for setting up", "Paste it into a coding agent (Claude Code, Codex, "
+                           "Cursor) to set up, train and submit", PROMPT_START)
             + '<ol class="steps">'
             + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd" id="step-{i}">'
-                      f'{copy_button(f"step-{i}", c, f"Copy the commands for step {i}")}<code>{esc(c)}</code></pre>'
+                      f'{copy_button(f"step-{i}", "Copy commands", one_line(c), small=True)}<code>{esc(c)}</code></pre>'
                       f'<a class="more" href="{L(h)}">{esc(lk)} →</a></li>'
                       for i, (t, d, h, lk, c) in enumerate(steps, 1)) + "</ol>")
     routes["/get-started/"] = ("Get started", "start", body)
@@ -919,9 +928,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
                    '<div class="tiles">' + tile("Data only", "Phase 1", "nets and settings, never code")
                    + tile("Same budget", "Every bot", "fixed ranked settings")
                    + tile("Automatic", "Checks", "size, contents, a test position") + "</div>"
-                   + agent_prompt("submit", "Already have a trained net? Paste this into a coding agent and it packs "
-                                  "your bundle, writes your entry, runs the checks and tells you what to put in the "
-                                  "form.", PROMPT_SUBMIT))
+                   + agent_prompt("submit", "Prompt for submitting", "Paste it into a coding agent to pack, check "
+                                  "and submit your trained bot", PROMPT_SUBMIT))
         if path == "/get-started/setup/":
             top = f'<nav class="crumbs"><a href="{L("/get-started/")}">← Get started</a></nav>'
         sub = subnav(path) if sections[path] == "lab" else ""
@@ -978,11 +986,13 @@ MOTION = ('<script>function yomiPlay(){if(!matchMedia("(prefers-reduced-motion: 
 # API isn't available (a page opened from a file), it copies through a hidden text box.
 COPY = ('<script>document.addEventListener("click",function(e){var b=e.target.closest("button[data-copy]");if(!b)return;'
         'var t=document.getElementById(b.dataset.copy);if(!t)return;var x=b.dataset.copyText||t.textContent;'
-        'function done(m){var o=b.dataset.label||b.textContent;b.dataset.label=o;b.textContent=m;'
-        'setTimeout(function(){b.textContent=o},1800)}function pick(){var a=document.createElement("textarea");a.value=x;'
-        'a.setAttribute("readonly","");a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);'
-        'a.select();var ok=false;try{ok=document.execCommand("copy")}catch(_){}a.remove();done(ok?"Copied":"Copy failed")}'
-        'if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(x).then(function(){done("Copied")},'
+        'function done(ok){var o=b.dataset.label||b.getAttribute("aria-label"),m=ok?"Copied":"Copy failed";'
+        'b.dataset.label=o;b.classList.remove("done","fail");b.classList.add(ok?"done":"fail");b.dataset.tip=m;'
+        'b.setAttribute("aria-label",m);clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove("done","fail");'
+        'b.dataset.tip=o;b.setAttribute("aria-label",o)},1600)}function pick(){var a=document.createElement("textarea");'
+        'a.value=x;a.setAttribute("readonly","");a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);'
+        'a.select();var ok=false;try{ok=document.execCommand("copy")}catch(_){}a.remove();done(ok)}'
+        'if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(x).then(function(){done(true)},'
         'pick)}else{pick()}})</script>')
 
 

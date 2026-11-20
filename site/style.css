@@ -218,18 +218,42 @@ details.panel[open] > summary { margin-bottom: var(--s3); }
        font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .more { font-weight: 600; font-size: var(--fs-sm); text-decoration: none; }
 
-/* agent prompt: a box to copy into a coding agent (Get started and Submit) */
-.agent { gap: var(--s3); background: var(--panel); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: var(--r);
-         padding: var(--s4) var(--s5); }
-.agenthead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s3) var(--s5); }
-.agenthead > div { display: flex; flex-direction: column; gap: 4px; max-width: 64ch; }
-.agenthead h2 { font-size: var(--fs-md); }
-.copy { border: 0; cursor: pointer; font: inherit; font-weight: 600; min-width: 9.5em; justify-content: center; }
-/* floats beside the first line only, so the lines below keep the box's full width */
-.cmdcopy { float: right; margin: -4px -6px 4px 10px; min-width: 4.6em; padding: 4px 10px; border: 1px solid var(--line-2); border-radius: var(--r-sm);
-           background: var(--panel); color: var(--ink-2); font: 600 var(--fs-xs) var(--body); cursor: pointer; }
-.cmdcopy:hover { color: var(--accent-ink); border-color: var(--accent); }
+/* copy button: an icon (two overlapping squares) that turns into a check once copied, with a hover label */
+.iconbtn { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: var(--r-sm);
+           border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); cursor: pointer; position: relative; }
+.iconbtn:hover { color: var(--accent-ink); border-color: var(--accent); }
+.iconbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.iconbtn .ok { display: none; }
+.iconbtn.done { color: var(--win); border-color: var(--win); }
+.iconbtn.done .cp { display: none; }
+.iconbtn.done .ok { display: block; }
+.iconbtn.fail { color: var(--loss); border-color: var(--loss); }
+.iconbtn::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); right: 0; white-space: nowrap; font: 500 var(--fs-xs) var(--body);
+                  padding: 3px 8px; border-radius: 4px; background: var(--ink); color: var(--bg); opacity: 0; pointer-events: none; transition: opacity 0.12s; }
+.iconbtn:hover::after, .iconbtn:focus-visible::after, .iconbtn.done::after, .iconbtn.fail::after { opacity: 1; }
+.iconbtn.sm { width: 28px; height: 28px; }
+.iconbtn.sm svg { width: 14px; height: 14px; }
+.steps .cmd .iconbtn { float: right; margin: -4px -6px 4px 10px; }  /* beside the first line only; the lines below keep the full width */
+
+/* agent prompt: one slim bar, closed by default; the copy button works without opening it (Get started and Submit) */
+.agent { position: relative; }
+.agent details { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+.agent details[open] { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.agent summary { list-style: none; display: flex; align-items: center; gap: var(--s3); padding: 10px 56px 10px var(--s4); min-height: 52px; cursor: pointer; }
+.agent summary::-webkit-details-marker { display: none; }
+.agent > .iconbtn { position: absolute; top: 10px; right: 10px; }
+.boticon { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.agentt { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.agentt b { font-weight: 600; }
+.agentt span { color: var(--muted); font-size: var(--fs-sm); }
+.tog { font-size: var(--fs-sm); font-weight: 600; color: var(--accent-ink); white-space: nowrap; }
+.tog::after { content: " ▾"; }
+details[open] .tog::after { content: " ▴"; }
+.tog .h, details[open] .tog .s { display: none; }
+details[open] .tog .h { display: inline; }
+.agentbody { padding: 0 var(--s4) var(--s4); }
 .prompt { max-height: 18em; overflow-y: auto; }
+@media (max-width: 560px) { .agentt span, .tog .wide { display: none; } }
 
 /* docs */
 .doc { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s5) clamp(16px, 4vw, 40px) var(--s6); }
