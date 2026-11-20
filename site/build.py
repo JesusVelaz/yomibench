@@ -377,9 +377,10 @@ def agent_prompt(key: str, title: str, blurb: str, prompt: str) -> str:
     """The agent prompt as one slim bar, closed by default. The copy button sits outside the <summary> (a button
     inside one is a control within a control), positioned over the bar, so it copies without opening it."""
     pid = f"prompt-{key}"
-    return (f'<div class="agent"><details><summary>{BOT_ICON}<span class="agentt"><b>{esc(title)}</b>'
-            f'<span>{esc(blurb)}</span></span><span class="tog"><span class="s">Show<span class="wide"> prompt</span></span><span class="h">Hide'
-            f'</span></span></summary><div class="agentbody"><pre class="cmd prompt" id="{pid}" tabindex="0"><code>'
+    return (f'<div class="agent"><details><summary><span class="agentt">{BOT_ICON}<b>{esc(title)}</b></span>'
+            f'<span class="agentd">{esc(blurb)}</span><span class="tog"><span class="s">Show<span class="wide"> prompt'
+            f'</span></span><span class="h">Hide</span></span></summary><div class="agentbody">'
+            f'<pre class="cmd prompt" id="{pid}" tabindex="0"><code>'
             f'{esc(prompt)}</code></pre></div></details>{copy_button(pid, "Copy prompt")}</div>')
 
 
@@ -884,8 +885,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
               "uv run yomibench bundle pack \\\n  --name my-bot-1 \\\n  --owner YOUR-GITHUB-USERNAME \\\n  --value BEST_MODEL.npz")]
     body = ('<header class="pagehead"><p class="eyebrow">Get started</p><h1>Train a bot and enter it</h1><p class="lead">'
             'Three steps from your copy of the game to a bot in the Arena.</p></header>'
-            + agent_prompt("start", "Prompt for setting up", "Paste it into a coding agent (Claude Code, Codex, "
-                           "Cursor) to set up, train and submit", PROMPT_START)
+            + agent_prompt("start", "Prompt for setting up",
+                           "A prompt that walks you through setup, training and submitting", PROMPT_START)
             + '<ol class="steps">'
             + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd" id="step-{i}">'
                       f'{copy_button(f"step-{i}", "Copy commands", one_line(c), small=True)}<code>{esc(c)}</code></pre>'
@@ -928,8 +929,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
                    '<div class="tiles">' + tile("Data only", "Phase 1", "nets and settings, never code")
                    + tile("Same budget", "Every bot", "fixed ranked settings")
                    + tile("Automatic", "Checks", "size, contents, a test position") + "</div>"
-                   + agent_prompt("submit", "Prompt for submitting", "Paste it into a coding agent to pack, check "
-                                  "and submit your trained bot", PROMPT_SUBMIT))
+                   + agent_prompt("submit", "Prompt for submitting",
+                                  "A prompt to pack, check and submit your trained bot", PROMPT_SUBMIT))
         if path == "/get-started/setup/":
             top = f'<nav class="crumbs"><a href="{L("/get-started/")}">← Get started</a></nav>'
         sub = subnav(path) if sections[path] == "lab" else ""
