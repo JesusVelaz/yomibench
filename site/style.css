@@ -234,6 +234,7 @@ details.panel[open] > summary { margin-bottom: var(--s3); }
 .iconbtn.sm { width: 28px; height: 28px; }
 .iconbtn.sm svg { width: 14px; height: 14px; }
 .steps .cmd .iconbtn { float: right; margin: -4px -6px 4px 10px; }  /* beside the first line only; the lines below keep the full width */
+.cmd .iconbtn::after { display: none; }  /* the command box clips overflow, so its label would show as a thin sliver; the button has a native title instead */
 
 /* agent prompt: one slim bar, closed by default; the copy button works without opening it (Get started and Submit) */
 .agent { position: relative; }

@@ -380,6 +380,8 @@ BOT_ICON = ('<svg class="boticon" viewBox="0 0 24 24" aria-hidden="true"><rect x
 def copy_button(target: str, label: str, text: str | None = None, small: bool = False) -> str:
     """An icon copy button (COPY wires it). It copies `text` when given, else the text of the element `target`."""
     extra = f' data-copy-text="{esc(text)}"' if text is not None else ""
+    if small:  # small ones sit in a command box, which clips the CSS label, so they use a native title
+        extra += f' title="{esc(label)}"'
     return (f'<button type="button" class="iconbtn{" sm" if small else ""}" data-copy="{target}"{extra} '
             f'aria-label="{esc(label)}" data-tip="{esc(label)}">{COPY_ICON}</button>')
 
