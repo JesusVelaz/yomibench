@@ -377,10 +377,13 @@ BOT_ICON = ('<svg class="boticon" viewBox="0 0 24 24" aria-hidden="true"><rect x
             '<path d="M12 4v4M9 13h.01M15 13h.01M9 17h6"/></svg>')
 
 
-def copy_button(target: str, label: str, text: str | None = None, small: bool = False) -> str:
-    """An icon copy button (COPY wires it). It copies `text` when given, else the text of the element `target`."""
+def copy_button(target: str, label: str, text: str | None = None, small: bool = False,
+                native_title: bool | None = None) -> str:
+    """An icon copy button (COPY wires it). It copies `text` when given, else the text of the element `target`.
+    A button inside a box that clips overflow (the Get started command boxes) can't show the CSS label, so it gets a
+    native title instead; that's the default for small buttons."""
     extra = f' data-copy-text="{esc(text)}"' if text is not None else ""
-    if small:  # small ones sit in a command box, which clips the CSS label, so they use a native title
+    if small if native_title is None else native_title:
         extra += f' title="{esc(label)}"'
     return (f'<button type="button" class="iconbtn{" sm" if small else ""}" data-copy="{target}"{extra} '
             f'aria-label="{esc(label)}" data-tip="{esc(label)}">{COPY_ICON}</button>')
@@ -926,8 +929,24 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
             return f"]({REPO}/blob/main/docs/{m.group(1)}{m.group(2) or ''})"  # a doc that isn't a site page
         return re.sub(r"\]\((?:\.\./)?(?:docs/)?([A-Z]+\.md)(#[\w-]+)?\)", link, t)
 
-    def doc_html(text):  # tables scroll inside their own box
-        return md(fix(text)).replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
+    def with_copy(page: str, key: str) -> str:
+        """Every code block gets a copy icon, in a wrapper outside the block's own scroll box, so the icon stays put
+        when a long line scrolls and its label isn't clipped. It copies the block's text, with `\\` continuations
+        joined (one_line)."""
+        n = 0
+
+        def box(m):
+            nonlocal n
+            n += 1
+            pid = f"code-{key}-{n}"
+            text = html.unescape(re.sub(r"<[^>]+>", "", m.group(2))).rstrip("\n")
+            return (f'<div class="codebox"><pre id="{pid}">{m.group(1)}{m.group(2)}</code></pre>'
+                    f'{copy_button(pid, "Copy", one_line(text), small=True, native_title=False)}</div>')
+        return re.sub(r"<pre>(<code[^>]*>)(.*?)</code></pre>", box, page, flags=re.S)
+
+    def doc_html(text, copy_key=""):  # tables scroll inside their own box
+        page = md(fix(text)).replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
+        return with_copy(page, copy_key) if copy_key else page
 
     sections = {"/get-started/setup/": "start", "/lab/training/": "lab", "/lab/how-it-works/": "lab", "/play/": "play",
                 "/lab/mod/": "lab", "/submit/": "submit"}
@@ -952,7 +971,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
         if path == "/get-started/setup/":
             top = f'<nav class="crumbs"><a href="{L("/get-started/")}">← Get started</a></nav>'
         sub = subnav(path) if sections[path] == "lab" else ""
-        routes[path] = (title, sections[path], f'{sub}{top}<article class="doc">{doc_html(text)}</article>')
+        copy_key = {"/submit/": "submit", "/play/": "play"}.get(path, "")  # the pages people copy commands from
+        routes[path] = (title, sections[path], f'{sub}{top}<article class="doc">{doc_html(text, copy_key)}</article>')
     for w in writeups:
         routes[f"/lab/writeups/{w.stem.lower()}/"] = (
             w.stem.replace("-", " ").title(), "lab",

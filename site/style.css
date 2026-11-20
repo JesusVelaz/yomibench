@@ -268,6 +268,11 @@ details[open] .tog .h { display: inline; }
 .doc p, .doc ul, .doc ol { margin: 0 0 var(--s3); color: var(--ink-2); }
 .doc li { margin: 4px 0; }
 .doc pre { max-width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 12px 14px; overflow-x: auto; font-size: 0.82rem; }
+/* a code block with a copy icon: the icon sits in the wrapper, over the block's top right, outside its scroll box */
+.codebox { position: relative; margin: var(--s3) 0 var(--s4); }
+.doc > .codebox { max-width: 100%; }
+.codebox > pre { margin: 0; padding-right: 48px; }
+.codebox > .iconbtn { position: absolute; top: 7px; right: 7px; }
 .doc :not(pre) > code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0.05em 0.35em; font-size: 0.86em; }
 .doc .tablewrap { margin: var(--s3) 0 var(--s4); border-radius: var(--r-sm); }
 .doc table { margin: 0; }
