@@ -1,0 +1,243 @@
+{
+  "candidate_set": "5",
+  "comment": "Candidate set 5 generation rules: candidate set 4's rules unchanged, plus four Cowboy additions, each behind its own switch in `set5` (yomisim docs/CANDIDATE_SET_5.md). With every switch off the lists equal set 4's. Angles in degrees, counterclockwise from toward the opponent, screen y down (y = -sin).",
+  "xy_angles": [
+    0,
+    45,
+    90,
+    180,
+    -45,
+    135,
+    -90
+  ],
+  "xy_lengths": [
+    1.0,
+    0.5
+  ],
+  "extra_xy_angles": [
+    0,
+    45,
+    90,
+    135,
+    180,
+    -135,
+    -90,
+    -45
+  ],
+  "way_dirs": [
+    "E",
+    "NE",
+    "SE",
+    "N",
+    "S",
+    "W",
+    "NW",
+    "SW",
+    "Neutral"
+  ],
+  "dash_slider_values": [
+    100,
+    0,
+    60,
+    20,
+    80,
+    40
+  ],
+  "category_order": [
+    "Continue",
+    "Attack",
+    "Special",
+    "Super",
+    "Movement",
+    "Defense",
+    "Other"
+  ],
+  "mode_kinds": [
+    "height",
+    "check",
+    "option"
+  ],
+  "factors": [
+    "di",
+    "feint",
+    "reverse",
+    "extra_set",
+    "aim",
+    "di_fine"
+  ],
+  "list_order": [
+    "continue: di 0; if hurt and di_enabled: di indices hurt_continue_base_di (full-strength forward, back, up, down, as set 3); then each of Continue's extra sets 1..K-1",
+    "legal moves in action-menu creation order, data variants on extra set 0 (that move's own list)",
+    "for each Continue extra set k that changes input_grounded/input_aerial: moves newly legal with it, data variants on the matching set of that move's own list"
+  ],
+  "data_variants": "default; then for each mode-widget combination (odometer, first mode widget slowest, default first): non-mode widgets one at a time, interleaved by value rank; drop data equal to an earlier variant",
+  "budget": "max_candidates 0 = all (set 4's default); else keep every Continue variant and each move's variant 0, then round-robin over category_order without Continue (all its variants are kept already), within a category round-robin over its moves in list order, one variant per category per pass; kept candidates stay in list order",
+  "purity": "every generate() and expand() call starts from freshly instanced data scenes, extra panel and DI wheel (widget defaults), so a list depends only on the game state",
+  "di_values": [
+    [
+      0,
+      0
+    ],
+    [
+      100,
+      0
+    ],
+    [
+      71,
+      -71
+    ],
+    [
+      0,
+      -100
+    ],
+    [
+      -71,
+      -71
+    ],
+    [
+      -100,
+      0
+    ],
+    [
+      -71,
+      71
+    ],
+    [
+      0,
+      100
+    ],
+    [
+      71,
+      71
+    ],
+    [
+      50,
+      0
+    ],
+    [
+      35,
+      -35
+    ],
+    [
+      0,
+      -50
+    ],
+    [
+      -35,
+      -35
+    ],
+    [
+      -50,
+      0
+    ],
+    [
+      -35,
+      35
+    ],
+    [
+      0,
+      50
+    ],
+    [
+      35,
+      35
+    ]
+  ],
+  "di_names": [
+    "Neutral",
+    "F",
+    "FU",
+    "U",
+    "BU",
+    "B",
+    "BD",
+    "D",
+    "FD",
+    "F50",
+    "FU50",
+    "U50",
+    "BU50",
+    "B50",
+    "BD50",
+    "D50",
+    "FD50"
+  ],
+  "di_note": "DI factor values by index: integer percent of the DI wheel (x toward the opponent, y screen-down, so U = up). Full strength every 45 degrees, then half strength. The game scales knockback, nudge and projectile steering linearly in these percents and snaps to full only within 1%, so all 17 differ. Each value is entered on the wheel as (x * toward, y) / 100 * radius and must read back exactly. A third strength would add 8 neighbours per refined move; not taken.",
+  "hurt_continue_base_di": [
+    1,
+    5,
+    3,
+    7
+  ],
+  "extra_sets": "per move, with that move selected on a reset PlayerExtra panel (as the game's UI does when a player selects it): [{}], then each value of each visible enabled non-toggle widget (widget order), then for each visible enabled toggle: the toggle clicked, then the toggle plus each value of each non-toggle widget the click revealed; a set whose extras equal an earlier one, or that a widget refuses, is dropped. Candidate values.extra_set indexes its own move's list",
+  "expand": "expanding any candidate (generated or expanded) yields base = the root generated candidate's id and values = the cumulative, absolute factor values",
+  "rules_hash": "md5 of this file then Candidates.gd, each with '#' comments (Candidates.gd only) and all whitespace outside string literals removed; first 12 hex digits (tools/rules_hash.py)",
+  "parry_timings": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "extra_panel_refresh": "Reset; select move; show_options; select move again before reading visible/enabled widgets. Repeat after selecting each move; disabled flags never carry over from another selection.",
+  "set5_spec": "2026-11-17 A+B+C+R as measured by yomibench tools/set5_probe.py (0df0f11): draw-pair, gun-aim15, di-fine, quick-draw-base",
+  "set5": {
+    "draw_pairs": true,
+    "gun_aim_fine": true,
+    "bullet_di": true,
+    "draw_base": true
+  },
+  "set5_characters": [
+    "Cowboy"
+  ],
+  "draw_toggle": "gun_cancel",
+  "pair_toggles": [
+    "shift",
+    "detonate",
+    "drift",
+    "hindsight"
+  ],
+  "pair_overlay_keys": [
+    "shift",
+    "detonate",
+    "drift",
+    "hindsight",
+    "input_aerial",
+    "input_grounded"
+  ],
+  "draw_pairs": "A, expand only. A move other than Continue whose extra sets include a Draw set (the first set whose extras have draw_toggle on and every pair_toggles key off) gets one more extra set per pair toggle t, in pair_toggles order, when its sets also include a t set (the first with t on, draw_toggle and the other pair toggles off). Pair sets are numbered after the move's own sets, so set-4 indices keep their meaning. A pair candidate is valid when the move validates with both sets; its extras are the Draw set's with the t set's pair_overlay_keys laid over. Continue gets no pairs; list_order rule 3 never uses them.",
+  "draw_base": "R, base list. After list_order rules 1-3, each move other than Continue gets one more base entry: its first data variant with the first extra set (in index order) that is a Draw set and validates, placed after that move's last variant, before any budget.",
+  "gun_moves": [
+    "Shoot2",
+    "PointBlank",
+    "ShootDodge2"
+  ],
+  "gun_aim_step": 15.0,
+  "gun_aim_fine": "B, expand only: the aim factor. On a gun_moves candidate whose data holds an XY aim (data x, y or data.Direction x, y, longer than 1.5), values.aim is a path from the root candidate's aim: base-3 digits, least significant first, 1 = turn by -step, 2 = by +step, step = gun_aim_step / 2^depth. Each step reads the current integer aim's angle and length, unmirrors it for a reversed candidate, turns it, keeps it only inside the move's fan (the angles of this decision's unreversed base variants of that move, +-0.01; both 0 and 180 present = any angle), mirrors back, and rounds x and y to integers (half to even). factors.aim lists the paths one step longer that stay in the fan.",
+  "bullet_objects": [
+    "NewBullet",
+    "NewTimeBullet",
+    "frozen_bullet",
+    "frozen_bullet_fast"
+  ],
+  "bullet_di_angle_step": 22.5,
+  "bullet_di_strength_step": 25.0,
+  "bullet_di_max_strength": 100.5,
+  "bullet_di": "C, expand only: the di_fine factor, offered only to the seat that owns a live bullet_objects object (not disabled). values.di_fine is a path from the candidate's table DI (values.di): base-5 digits, least significant first, 1/2 = turn by -/+ angle_step / 2^depth at the same strength, 3/4 = strength -/+ strength_step / 2^depth at the same angle, kept within (0, max_strength], skipped when it rounds to the current DI or to neutral. Vectors are the DI as the candidate's extra carries it (x toward the screen right), integer percent rounded half to even. Neutral DI has no neighbours. factors.di_fine lists the valid paths one step longer.",
+  "set5_expand": "An aim, di_fine or pair expansion whose action, data and extra equal a candidate already listed or expanded this decision is refused. Factor paths stop at depth 4."
+}

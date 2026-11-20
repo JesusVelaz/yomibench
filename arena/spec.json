@@ -1,0 +1,49 @@
+{
+ "format": 1,
+ "notes": "The Arena's rating spec. arena_run.py refuses to play on any mismatch; a change starts a new rating era.",
+ "game": {
+  "version": "1.10.0",
+  "steam_build_id": "23959498",
+  "engine_game_version": "1.10.0-steam",
+  "sha256": {
+   "YourOnlyMoveIsHUSTLE.exe": "9cb277ae5c9d1c89058426270cdc0c58e22a4d9b148ac3aebf1fe20b50a62bfd",
+   "YourOnlyMoveIsHUSTLE.pck": "9466f7e4fefb3232ce99847df2d096e28dc14dcaf963ea9b111b935516bbf566"
+  }
+ },
+ "engine": {
+  "spec": "batch:4",
+  "version": "2",
+  "build_sha": "f9cd2f1b2587628197cd18295253adcae3f696e4",
+  "scene_sha256": "6563a26156e6e13b7c4678f6d0ae5c64f9463a48d757bf16153b0d69e537bc8b"
+ },
+ "mod_md5": "d358bc593c85d7f60b8baf74d6933801",
+ "harness": {
+  "version": "0.1.0",
+  "code_sha256": "6606aa6459abb4d3c9975eb88d3ba9620528ccda98340f282c3d40da66f2a437"
+ },
+ "candidate_set": 6,
+ "set5": "all",
+ "candidate_rules": "3b8bb1b76cd8",
+ "features": [
+  3
+ ],
+ "match_settings": {
+  "ceiling_height": 500,
+  "game_length": 3000,
+  "has_ceiling": true,
+  "stage_width": 600,
+  "starting_meter": "1.5"
+ },
+ "characters": [
+  "Cowboy",
+  "Ninja",
+  "Wizard",
+  "Mutant",
+  "Robot"
+ ],
+ "max_turns": 1000,
+ "search": "matrix-do",
+ "pairs_per_pairing": 1,
+ "shards_per_block": 5,
+ "seed": 20261120
+}

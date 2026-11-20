@@ -1,0 +1,83 @@
+# Arena submissions, phase 1 (data only): check a submitted bundle and entry, then say so on the issue.
+# Nothing submitted is ever run. The checks are this repository's own validator from the default branch (never code
+# from a submission), nets load as arrays only (allow_pickle=False) with every size bounded, and settings come from a
+# fixed list. Submissions come only through the issue form; there is no pull-request route.
+name: submission
+on:
+  issues:
+    types: [opened, edited, labeled]
+permissions: {}
+concurrency:  # one check per issue at a time; an edit cancels the check of the older text
+  group: submission-${{ github.event.issue.number }}
+  cancel-in-progress: true
+jobs:
+  check:
+    if: contains(github.event.issue.labels.*.name, 'submission')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[net]"
+      - name: Read the form (the body only ever goes through a file)
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: printf '%s' "$BODY" > "$RUNNER_TEMP/body.md"
+      - name: Fetch the bundle (GitHub attachments and release assets only, https only, 25 MB, 2 minutes)
+        run: |
+          if url=$(python tools/validate_submission.py --issue-body "$RUNNER_TEMP/body.md" --bundle-url); then
+            curl -fsSL --proto '=https' --proto-redir '=https' --max-redirs 5 --connect-timeout 15 --max-time 120 \
+              --max-filesize 26214400 -o "$RUNNER_TEMP/bundle.zip" "$url" || true
+          fi
+      - name: Validate
+        env:
+          AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          mkdir -p result
+          python tools/validate_submission.py --issue-body "$RUNNER_TEMP/body.md" --bundle "$RUNNER_TEMP/bundle.zip" \
+            --issue-author "$AUTHOR" --json > result/result.json || true
+          python -c "import json; r = json.load(open('result/result.json')); print('valid' if r['valid'] else 'not valid: %d problems' % len(r['problems']))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: result
+          path: result/result.json
+          retention-days: 7
+  report:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: result
+          path: result
+      - name: Report on the issue (only if the issue still has the text that was checked)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          now=$(gh api "repos/$REPO/issues/$NUMBER" --jq .body | python -c "import sys, hashlib; print(hashlib.sha256(sys.stdin.read().rstrip('\n').encode()).hexdigest())")
+          was=$(python -c "import json; print(json.load(open('result/result.json'))['body_sha256'] or '')")
+          if [ "$now" != "$was" ]; then echo "the issue changed since this check; the newer check reports"; exit 0; fi
+          python tools/validate_submission.py --render-comment result/result.json > comment.md
+          gh issue comment "$NUMBER" --repo "$REPO" --body-file comment.md
+          if python -c "import json, sys; sys.exit(0 if json.load(open('result/result.json'))['valid'] else 1)"; then
+            gh issue edit "$NUMBER" --repo "$REPO" --add-label valid --remove-label invalid
+          else
+            gh issue edit "$NUMBER" --repo "$REPO" --add-label invalid --remove-label valid
+          fi

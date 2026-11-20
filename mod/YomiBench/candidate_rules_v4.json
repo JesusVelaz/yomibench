@@ -1,0 +1,196 @@
+{
+  "candidate_set": "4",
+  "comment": "Candidate set 4 generation rules, read by Candidates.gd and meant to be read by ports. Order, factor and budget semantics: mod/YomiBench/README.md 'Candidate set 4'. Angles in degrees, counterclockwise from toward the opponent, screen y down (y = -sin).",
+  "xy_angles": [
+    0,
+    45,
+    90,
+    180,
+    -45,
+    135,
+    -90
+  ],
+  "xy_lengths": [
+    1.0,
+    0.5
+  ],
+  "extra_xy_angles": [
+    0,
+    45,
+    90,
+    135,
+    180,
+    -135,
+    -90,
+    -45
+  ],
+  "way_dirs": [
+    "E",
+    "NE",
+    "SE",
+    "N",
+    "S",
+    "W",
+    "NW",
+    "SW",
+    "Neutral"
+  ],
+  "dash_slider_values": [
+    100,
+    0,
+    60,
+    20,
+    80,
+    40
+  ],
+  "category_order": [
+    "Continue",
+    "Attack",
+    "Special",
+    "Super",
+    "Movement",
+    "Defense",
+    "Other"
+  ],
+  "mode_kinds": [
+    "height",
+    "check",
+    "option"
+  ],
+  "factors": [
+    "di",
+    "feint",
+    "reverse",
+    "extra_set"
+  ],
+  "list_order": [
+    "continue: di 0; if hurt and di_enabled: di indices hurt_continue_base_di (full-strength forward, back, up, down, as set 3); then each of Continue's extra sets 1..K-1",
+    "legal moves in action-menu creation order, data variants on extra set 0 (that move's own list)",
+    "for each Continue extra set k that changes input_grounded/input_aerial: moves newly legal with it, data variants on the matching set of that move's own list"
+  ],
+  "data_variants": "default; then for each mode-widget combination (odometer, first mode widget slowest, default first): non-mode widgets one at a time, interleaved by value rank; drop data equal to an earlier variant",
+  "budget": "max_candidates 0 = all (set 4's default); else keep every Continue variant and each move's variant 0, then round-robin over category_order without Continue (all its variants are kept already), within a category round-robin over its moves in list order, one variant per category per pass; kept candidates stay in list order",
+  "purity": "every generate() and expand() call starts from freshly instanced data scenes, extra panel and DI wheel (widget defaults), so a list depends only on the game state",
+  "di_values": [
+    [
+      0,
+      0
+    ],
+    [
+      100,
+      0
+    ],
+    [
+      71,
+      -71
+    ],
+    [
+      0,
+      -100
+    ],
+    [
+      -71,
+      -71
+    ],
+    [
+      -100,
+      0
+    ],
+    [
+      -71,
+      71
+    ],
+    [
+      0,
+      100
+    ],
+    [
+      71,
+      71
+    ],
+    [
+      50,
+      0
+    ],
+    [
+      35,
+      -35
+    ],
+    [
+      0,
+      -50
+    ],
+    [
+      -35,
+      -35
+    ],
+    [
+      -50,
+      0
+    ],
+    [
+      -35,
+      35
+    ],
+    [
+      0,
+      50
+    ],
+    [
+      35,
+      35
+    ]
+  ],
+  "di_names": [
+    "Neutral",
+    "F",
+    "FU",
+    "U",
+    "BU",
+    "B",
+    "BD",
+    "D",
+    "FD",
+    "F50",
+    "FU50",
+    "U50",
+    "BU50",
+    "B50",
+    "BD50",
+    "D50",
+    "FD50"
+  ],
+  "di_note": "DI factor values by index: integer percent of the DI wheel (x toward the opponent, y screen-down, so U = up). Full strength every 45 degrees, then half strength. The game scales knockback, nudge and projectile steering linearly in these percents and snaps to full only within 1%, so all 17 differ. Each value is entered on the wheel as (x * toward, y) / 100 * radius and must read back exactly. A third strength would add 8 neighbours per refined move; not taken.",
+  "hurt_continue_base_di": [
+    1,
+    5,
+    3,
+    7
+  ],
+  "extra_sets": "per move, with that move selected on a reset PlayerExtra panel (as the game's UI does when a player selects it): [{}], then each value of each visible enabled non-toggle widget (widget order), then for each visible enabled toggle: the toggle clicked, then the toggle plus each value of each non-toggle widget the click revealed; a set whose extras equal an earlier one, or that a widget refuses, is dropped. Candidate values.extra_set indexes its own move's list",
+  "expand": "expanding any candidate (generated or expanded) yields base = the root generated candidate's id and values = the cumulative, absolute factor values",
+  "rules_hash": "md5 of this file then Candidates.gd, each with '#' comments (Candidates.gd only) and all whitespace outside string literals removed; first 12 hex digits (tools/rules_hash.py)",
+  "parry_timings": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "extra_panel_refresh": "Reset; select move; show_options; select move again before reading visible/enabled widgets. Repeat after selecting each move; disabled flags never carry over from another selection."
+}

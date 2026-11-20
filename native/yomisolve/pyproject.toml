@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "yomisolve"
+version = "0.1.0"
+requires-python = ">=3.9"
+description = "Native regret matching+ for yomibench (optional; search.py falls back to pure Python)"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]

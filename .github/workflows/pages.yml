@@ -1,0 +1,52 @@
+# Build the site from every release's files (gen-N.json and its videos) and the Arena's data, and deploy it to
+# GitHub Pages. Runs when a release is published (a promotion), when Arena results, the site or the docs change on
+# main, and by hand. No video is ever committed to the repository: they live on the releases.
+name: site
+on:
+  release:
+    types: [published]
+  push:
+    branches: [main]
+    paths: ["arena/**", "site/**", "docs/**"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install markdown==3.7
+      - name: Download every release's files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p releases
+          for tag in $(gh release list --limit 200 --json tagName -q '.[].tagName'); do
+            gh release download "$tag" --dir releases --skip-existing
+          done
+      - name: Build the site (the project Pages URL is https://OWNER.github.io/REPO)
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: python site/build.py --releases releases --docs docs --arena arena --out _site --site-url "https://${OWNER,,}.github.io/$REPO"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

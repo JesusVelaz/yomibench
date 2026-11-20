@@ -1,0 +1,18 @@
+{
+ "format": 1,
+ "division": "ranked",
+ "status": "submission checks live; rated matches open soon. House generations from the current era (10-13) play the Arena's own matches.",
+ "match_settings": "ranked",
+ "candidate_set": 6,
+ "characters": [
+  "Cowboy",
+  "Ninja",
+  "Wizard",
+  "Robot",
+  "Mutant"
+ ],
+ "search": "matrix-do: double-oracle search over every candidate, scored by the bot's value net",
+ "budget": "the same per move for every bot: the candidate set and solver settings in arena/spec.json, never seconds",
+ "entry_settings": "an entry may only narrow its own search inside the budget: prune_k 4-32, prune_scope own or both (docs/SUBMIT.md)",
+ "house": "every promoted generation enters as gen-N, owner house"
+}

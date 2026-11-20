@@ -1,0 +1,14 @@
+{
+  "author": "YomiBench",
+  "client_side": true,
+  "description": "Adds Multiplayer (vs bot): a local multiplayer match against a YomiBench bot on this PC (a headless copy of the game joins over 127.0.0.1 only). Never reachable by other players; refused while an online session or Steam lobby is open.",
+  "friendly_name": "YomiBench: Multiplayer vs bot",
+  "id": "yomibench-vsbot",
+  "incompatible": [],
+  "link": "",
+  "name": "yomibenchVsBot",
+  "overwrites": false,
+  "priority": 0,
+  "requires": [""],
+  "version": "0.2.0"
+}

@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Run output (ledgers, replays, checkpoints)
+out/
+runs/
+checkpoints/
+
+# Never commit game content: the game is closed source and not ours to redistribute.
+# That covers extracted/decompiled scripts, packs, binaries and anything copied from the install.
+research/
+game_src/
+game_full/
+*.pck
+*.exe
+*.dll
+*.so
+*.x86_64
+
+# Native extension builds
+native/*/target/
+
+# Training caches (derived from records; yomibench.cache)
+.cache/
+dist/

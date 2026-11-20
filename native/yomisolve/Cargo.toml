@@ -1,0 +1,17 @@
+[package]
+name = "yomisolve"
+version = "0.1.0"
+edition = "2021"
+description = "Regret matching+ for yomibench's matrix solver (same arithmetic as search._alternating)"
+publish = false
+
+[lib]
+name = "yomisolve"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "=0.23.5", features = ["extension-module", "abi3-py39"] }
+
+[profile.release]
+# No fast-math, no FMA contraction: results must equal the pure-Python solver bit for bit.
+opt-level = 3
