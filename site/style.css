@@ -227,7 +227,7 @@ details.panel[open] > summary { margin-bottom: var(--s3); }
 .doc p, .doc ul, .doc ol { margin: 0 0 var(--s3); color: var(--ink-2); }
 .doc li { margin: 4px 0; }
 .doc pre { max-width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 12px 14px; overflow-x: auto; font-size: 0.82rem; }
-.doc :not(pre) > code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0.05em 0.35em; font-size: 0.86em; }
+.doc :not(pre) > code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0.05em 0.35em; font-size: 0.86em; overflow-wrap: anywhere; }
 .doc .tablewrap { margin: var(--s3) 0 var(--s4); border-radius: var(--r-sm); }
 .doc table { margin: 0; }
 .doc table th { background: var(--panel-2); }
