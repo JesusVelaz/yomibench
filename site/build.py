@@ -365,8 +365,9 @@ def agent_prompt(key: str, blurb: str, prompt: str) -> str:
 
 
 def copy_button(target: str, cmd: str, label: str) -> str:
-    """A Copy button for a command box. It copies the commands with `\\` line continuations joined, so the text
-    pastes into PowerShell as well as a POSIX shell; the box still shows them split for reading."""
+    """A Copy button for a command box (it goes inside the box's <pre>, floated beside the first line). It copies the
+    commands with `\\` line continuations joined, so the text pastes into PowerShell as well as a POSIX shell; the box
+    still shows them split for reading. The text comes from data-copy-text, never the box, so the label isn't copied."""
     one_line = re.sub(r"[ \t]*\\\n[ \t]*", " ", cmd)
     return (f'<button type="button" class="copy cmdcopy" data-copy="{target}" data-copy-text="{esc(one_line)}" '
             f'aria-label="{esc(label)}">Copy</button>')
@@ -877,8 +878,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
                            "walks you through setup, training and submitting, from the guides on this site.",
                            PROMPT_START)
             + '<ol class="steps">'
-            + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><div class="cmdbox"><pre class="cmd" id="step-{i}"><code>'
-                      f'{esc(c)}</code></pre>{copy_button(f"step-{i}", c, f"Copy the commands for step {i}")}</div>'
+            + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd" id="step-{i}">'
+                      f'{copy_button(f"step-{i}", c, f"Copy the commands for step {i}")}<code>{esc(c)}</code></pre>'
                       f'<a class="more" href="{L(h)}">{esc(lk)} →</a></li>'
                       for i, (t, d, h, lk, c) in enumerate(steps, 1)) + "</ol>")
     routes["/get-started/"] = ("Get started", "start", body)
