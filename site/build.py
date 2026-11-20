@@ -340,16 +340,18 @@ Explain each step in plain words. Never ask me for passwords or tokens; I'll sig
 PROMPT_SUBMIT = f"""Help me submit my yomibench bot to the Arena. Work in my clone of {REPO} (clone it if I don't \
 have one) and follow docs/SUBMIT.md exactly; don't guess commands.
 
-1. Ask me for my GitHub username (the name in github.com/USERNAME, for the account I'll open the submission from; \
-not my display name) and a name for my bot (1-40 of a-z 0-9 . _ -, like my-bot-1).
-2. Find my best net: the training loop names it in OUT/best.json, in its "model" field (OUT is ~/.yomibench/train \
+1. Find my GitHub username: the name in github.com/USERNAME, for the account I'll open the submission from. If the \
+GitHub CLI is signed in, `gh api user --jq .login` prints it. Don't use `git config user.name`; that's a display \
+name, not the username. Ask me only if you can't find it, and tell me which username you're using.
+2. Ask me for a name for my bot (1-40 of a-z 0-9 . _ -, like my-bot-1).
+3. Find my best net: the training loop names it in OUT/best.json, in its "model" field (OUT is ~/.yomibench/train \
 unless I chose another --out). Ask me if you can't find it.
-3. Pack it: `uv run yomibench bundle pack --name BOT-NAME --owner GITHUB-USERNAME --value PATH/TO/MODEL.npz`. Add \
+4. Pack it: `uv run yomibench bundle pack --name BOT-NAME --owner GITHUB-USERNAME --value PATH/TO/MODEL.npz`. Add \
 `--policy` only if I have a policy net.
-4. Write entry.json with name, owner, bundle_sha256 (the zip's sha256, lowercase), candidate_set (from \
+5. Write entry.json with name, owner, bundle_sha256 (the zip's sha256, lowercase), candidate_set (from \
 arena/spec.json), "settings": {{}} and, if I want, notes.
-5. Run `uv run python tools/validate_submission.py entry.json BOT-NAME.zip` and fix anything it reports.
-6. Then tell me exactly what to paste into the submission form ({FORM}) and which file to drag in. Don't open the \
+6. Run `uv run python tools/validate_submission.py entry.json BOT-NAME.zip` and fix anything it reports.
+7. Then tell me exactly what to paste into the submission form ({FORM}) and which file to drag in. Don't open the \
 issue yourself.
 
 Explain each step in plain words. Never ask me for passwords or tokens."""
@@ -885,7 +887,7 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
               "uv run yomibench bundle pack \\\n  --name my-bot-1 \\\n  --owner YOUR-GITHUB-USERNAME \\\n  --value BEST_MODEL.npz")]
     body = ('<header class="pagehead"><p class="eyebrow">Get started</p><h1>Train a bot and enter it</h1><p class="lead">'
             'Three steps from your copy of the game to a bot in the Arena.</p></header>'
-            + agent_prompt("start", "Prompt for setting up",
+            + agent_prompt("start", "Prompt to get started",
                            "A prompt that walks you through setup, training and submitting", PROMPT_START)
             + '<ol class="steps">'
             + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd" id="step-{i}">'
@@ -929,8 +931,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
                    '<div class="tiles">' + tile("Data only", "Phase 1", "nets and settings, never code")
                    + tile("Same budget", "Every bot", "fixed ranked settings")
                    + tile("Automatic", "Checks", "size, contents, a test position") + "</div>"
-                   + agent_prompt("submit", "Prompt for submitting",
-                                  "A prompt to pack, check and submit your trained bot", PROMPT_SUBMIT))
+                   + agent_prompt("submit", "Prompt to submit",
+                                  "A prompt to help pack, check, and submit your trained bot", PROMPT_SUBMIT))
         if path == "/get-started/setup/":
             top = f'<nav class="crumbs"><a href="{L("/get-started/")}">← Get started</a></nav>'
         sub = subnav(path) if sections[path] == "lab" else ""
