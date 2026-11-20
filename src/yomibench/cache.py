@@ -672,7 +672,7 @@ def open_cached(dirs: list[Path], vocab, val_fraction: float, seed: int, value_w
                 log=print, hp_margin: bool = False, quick_turns: dict[str, Any] | None = None,
                 record_filter: dict[str, Any] | None = None,
                 allow_match_settings: list[dict[str, Any]] | None = None, cand_k: int | None = None,
-                window: dict[str, Any] | None = None) -> dict[str, Any]:
+                window: dict[str, Any] | None = None, phases=None) -> dict[str, Any]:
     """train.load_samples' result from the folders' caches (brought up to date first), with the
     same splits, rows, targets, weights and counts, and `vocab` filled the same way; the input
     columns (nums0/1, cats0/1) are LazyColumns, everything else plain arrays (y and w on `device`
@@ -686,12 +686,16 @@ def open_cached(dirs: list[Path], vocab, val_fraction: float, seed: int, value_w
     first). Without it no side cache is read or built.
     `window`: as load_samples (train.sample_window after the record filter, each game's time the
     source mtime the manifest checked against the file, `sample_window` in the result). Only the
-    kept games' row ranges are read afterwards: the dropped games' shard pages are never touched."""
+    kept games' row ranges are read afterwards: the dropped games' shard pages are never touched.
+    `phases`: a train.PhaseTimer to add this load's phases to (heldout_split, cache_build, cache_open,
+    eval_load, candidate_cache, window_select, row_select, vocab, assemble); None: not timed."""
     from yomibench.compat import apply_record_filter, check_keys
     from yomibench.features import CATEGORIES, CATEGORY_OF_SLOT
     from yomibench.selfplay import SlimTurn
-    from yomibench.train import (PHASES, explore_cutoffs, matchup_code, sample_window, select_files, select_rows,
-                                 variants_of)
+    from yomibench.train import (PHASES, PhaseTimer, explore_cutoffs, matchup_code, sample_window, select_files,
+                                 select_rows, variants_of)
+
+    timer = phases if phases is not None else PhaseTimer()
 
     explore_cutoffs([], explore_targets)  # validates the setting before any work
     if gen_weights is not None and len(gen_weights) != len(dirs):
@@ -702,26 +706,38 @@ def open_cached(dirs: list[Path], vocab, val_fraction: float, seed: int, value_w
     weights = gen_weights or [1.0] * len(dirs)
     # Files first: select_files checks evaluation folders (frozen manifests, no game shared with
     # training) before any of their records is read.
-    chunks, gen_of, manifests = select_files(dirs, val_fraction, seed, games_per_gen, eval_dirs, heldout_root,
-                                             heldout_seed)
-    caches = {Path(d).resolve(): Cache(build(Path(d), root, workers, log, hp_margin), Path(d))
-              for d in [*dirs, *eval_dirs]}
+    with timer("heldout_split"):
+        chunks, gen_of, manifests = select_files(dirs, val_fraction, seed, games_per_gen, eval_dirs, heldout_root,
+                                                 heldout_seed)
+    caches = {}
+    for d in dirs:
+        with timer("cache_build"):  # brought up to date: new games encoded
+            cdir = build(Path(d), root, workers, log, hp_margin)
+        with timer("cache_open"):
+            caches[Path(d).resolve()] = Cache(cdir, Path(d))
+    for d in eval_dirs:
+        with timer("eval_load"):  # the eval folders' caches, built and opened
+            caches[Path(d).resolve()] = Cache(build(Path(d), root, workers, log, hp_margin), Path(d))
     files = [p for c in chunks.values() for p in c]
-    cand_caches = {Path(d).resolve(): CandCache(build_cands(Path(d), caches[Path(d).resolve()].dir, cand_k, workers, log),
-                                                cand_k) for d in dirs} if cand_k else {}
+    with timer("candidate_cache"):
+        cand_caches = {Path(d).resolve(): CandCache(build_cands(Path(d), caches[Path(d).resolve()].dir, cand_k, workers,
+                                                                log), cand_k) for d in dirs} if cand_k else {}
 
     def entry(p: Path):
         c = caches[Path(p).parent.resolve()]
         return c, c.manifest["files"][Path(p).name]
     allow = {"allow_match_settings": allow_match_settings} if allow_match_settings else {}
+    t_window = time.perf_counter()  # the record filter, the sample window and the compatibility checks
     filtered = apply_record_filter(chunks, lambda p: entry(p)[1]["keys"], record_filter, log, **allow)
     windowed = sample_window(chunks, lambda p: entry(p)[1]["source"][1], lambda p: entry(p)[1]["keys"],
                              window["recent_hours"], window["budget"], window["seed"], log) if window else None
     files = [p for c in chunks.values() for p in c]
     check_keys([tuple(entry(p)[1]["keys"]) for p in files], allow_mixed_candidate_sets, **allow)
     variant_of = variants_of(files, lambda p: entry(p)[1]["keys"], allow_match_settings) or {}
+    timer.add("window_select", time.perf_counter() - t_window)
 
     # Rows per split, chosen by train.select_rows from the cached per-turn facts.
+    t_rows = time.perf_counter()
     picked: dict[str, dict[str, Any]] = {}
     for split in ("train", "val", "eval"):
         idx, ys, phases, gens, cache_of, aux, cref = [], [], [], [], [], [], []
@@ -772,6 +788,8 @@ def open_cached(dirs: list[Path], vocab, val_fraction: float, seed: int, value_w
                          "explored": explored, "value_only": value_only, "decisions": decisions,
                          "outcome_targets": outcome_targets}
 
+    timer.add("row_select", time.perf_counter() - t_rows)
+    t_vocab = time.perf_counter()
     # The training vocab: names in order of first appearance over the training rows, as the
     # in-memory loader assigns them (per row: p1's view slots, then p2's); start values from the
     # training games' characters.
@@ -816,6 +834,8 @@ def open_cached(dirs: list[Path], vocab, val_fraction: float, seed: int, value_w
         width = max(len(t) for t in tables)
         lut2d[id(c)] = np.stack([np.pad(t, (0, width - len(t))) for t in tables])
     vocab.frozen = False
+    timer.add("vocab", time.perf_counter() - t_vocab)
+    t_assemble = time.perf_counter()  # each split's columns: the row gathers read the shards' pages
 
     out: dict[str, Any] = {"heldout": manifests, **({"record_filter": filtered} if filtered else {}),
                            **({"sample_window": windowed} if windowed else {})}
@@ -873,6 +893,7 @@ def open_cached(dirs: list[Path], vocab, val_fraction: float, seed: int, value_w
         out["cand_table"] = finish_table(np.concatenate([c.unums for c in ccs]),
                                          {cat: [n for c in ccs for n in c.names[cat]] for cat in ("action", "dkey")},
                                          out["train"]["cand_uid"])
+    timer.add("assemble", time.perf_counter() - t_assemble)
     return out
 
 

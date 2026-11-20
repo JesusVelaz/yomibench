@@ -194,6 +194,36 @@ CHEAP_TARGETS = ("outcome", "next-full")  # a quick turn's training target (sele
 SELECT = ("best", "final")  # which epoch's weights are kept: lowest validation MSE, or the last
 
 
+class PhaseTimer:
+    """Wall seconds per named phase of a fit (metrics.phase_seconds of its ledger row and the
+    'phase seconds:' log line). `with timer("name"):` adds the block's seconds to that phase (a phase
+    timed more than once adds up); phases keep the order they were first timed."""
+
+    def __init__(self) -> None:
+        self.seconds: dict[str, float] = {}
+
+    def add(self, name: str, seconds: float) -> None:
+        self.seconds[name] = self.seconds.get(name, 0.0) + max(0.0, float(seconds))
+
+    def __call__(self, name: str):
+        import contextlib
+
+        @contextlib.contextmanager
+        def timed():
+            t = time.perf_counter()
+            try:
+                yield
+            finally:
+                self.add(name, time.perf_counter() - t)
+        return timed()
+
+    def rounded(self) -> dict[str, float]:
+        return {k: round(v, 2) for k, v in self.seconds.items()}
+
+    def line(self) -> str:
+        return "phase seconds: " + ", ".join(f"{k} {v:.1f}" for k, v in self.seconds.items())
+
+
 def explore_cutoffs(turns: list[Any], explore_targets: str = "uniform-only") -> tuple[int, int]:
     """(last turn index on value-only targets, last turn index left out of validation); -1 for none.
     Validation's cutoff is the last uniform pick whatever `explore_targets` is (see the module docstring)."""
@@ -1325,14 +1355,16 @@ def main(argv: list[str] | None = None) -> None:
     torch.manual_seed(args.seed)
     device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
     vocab = init_vocab(args.init_from)
+    phases = PhaseTimer()  # metrics.phase_seconds: where the fit's time went (load_seconds/train_seconds kept)
     t_load = time.perf_counter()
     if args.in_memory:
-        data = load_samples(args.dirs, vocab, args.val_fraction, args.seed, args.value_weight, args.workers, device,
-                            args.allow_mixed_candidate_sets, args.games_per_gen, gen_weights, args.explore_targets,
-                            args.eval_dir, args.heldout_root, args.heldout_seed, quick_turns=targets,
-                            record_filter=args.record_filter,
-                            **({"allow_match_settings": args.allow_match_settings} if args.allow_match_settings else {}),
-                            **({"cand_k": cand_k} if cand_k else {}), **({"window": window} if window else {}))
+        with phases("load_in_memory"):  # extract, encode and split in one pass: not split further
+            data = load_samples(args.dirs, vocab, args.val_fraction, args.seed, args.value_weight, args.workers, device,
+                                args.allow_mixed_candidate_sets, args.games_per_gen, gen_weights, args.explore_targets,
+                                args.eval_dir, args.heldout_root, args.heldout_seed, quick_turns=targets,
+                                record_filter=args.record_filter,
+                                **({"allow_match_settings": args.allow_match_settings} if args.allow_match_settings else {}),
+                                **({"cand_k": cand_k} if cand_k else {}), **({"window": window} if window else {}))
     else:  # the same splits and rows from yomibench.cache, input columns memory-mapped
         from yomibench.cache import open_cached
 
@@ -1341,7 +1373,8 @@ def main(argv: list[str] | None = None) -> None:
                            args.eval_dir, args.heldout_root, args.heldout_seed, root=args.cache,
                            hp_margin=args.aux_hp_weight > 0, quick_turns=targets, record_filter=args.record_filter,
                            **({"allow_match_settings": args.allow_match_settings} if args.allow_match_settings else {}),
-                           **({"cand_k": cand_k} if cand_k else {}), **({"window": window} if window else {}))
+                           **({"cand_k": cand_k} if cand_k else {}), **({"window": window} if window else {}),
+                           phases=phases)
     tr, va, ev = data["train"], data["val"], data["eval"]
     load_s = time.perf_counter() - t_load
     print(f"train: {tr['games']} games, {len(tr['y'])} samples; val (held out): {va['games']} games, "
@@ -1360,6 +1393,7 @@ def main(argv: list[str] | None = None) -> None:
     cov = tr["outcome_coverage"]
     print("training decisions with outcome targets: "
           + ", ".join(f"{k} {'-' if v is None else f'{v:.1%}'}" for k, v in cov.items()), flush=True)
+    t_setup = time.perf_counter()  # standardization, the net, init and the training tensors
     # this run's standardization; with --init-from, load_init keeps the model's own except for inputs the
     # model saw as constant that vary here (re-scaled to these statistics, weights starting at 0)
     mean, std = _standardization(tr["nums0"], tr["nums1"])
@@ -1425,6 +1459,7 @@ def main(argv: list[str] | None = None) -> None:
         return v, (a0 - a1) / 2 if aux else None, (s0 - s1) / 2 if aux_offsets else None, (h0, h1)
     best = (float("inf"), None, -1, None)  # (val mse, weights, epoch, eval mse): lowest validation MSE
     final = best  # the same for the last epoch (weights only with --select final)
+    phases.add("setup", time.perf_counter() - t_setup)
     t0 = time.perf_counter()
     epochs_run = 0
     n_batches = (len(t["y"]) + args.batch - 1) // args.batch
@@ -1466,8 +1501,9 @@ def main(argv: list[str] | None = None) -> None:
             opt.zero_grad()
             loss.backward()
             opt.step()
+        phases.add("train_epochs", time.monotonic() - e0)
         net.eval()
-        with torch.no_grad():
+        with phases("epoch_eval"), torch.no_grad():  # each epoch's validation and evaluation predictions
             pred = predict(va)
             pred_e = predict(ev)
         val = float(np.mean((pred - va["outcome"]) ** 2)) if len(va["y"]) else loss.item()
@@ -1488,6 +1524,7 @@ def main(argv: list[str] | None = None) -> None:
           f"best val mse {best[0]:.4f} at epoch {best[2]}" + (f" (eval mse {best[3]:.4f})" if best[3] is not None else "")
           + f"; kept epoch {kept[2]} (--select {args.select})")
     has_val = bool(len(va["y"]))
+    t_score = time.perf_counter()  # the kept model scored on validation and evaluation, per phase and matchup
     model = ValueNet(kept[1], vocab, {
         "name": args.name or args.out.stem, "hidden": args.hidden, "epochs": args.epochs, "best_epoch": best[2],
         "epochs_run": epochs_run, **({"early_stop_patience": args.early_stop_patience} if args.early_stop_patience else {}),
@@ -1566,18 +1603,21 @@ def main(argv: list[str] | None = None) -> None:
             for i, d in enumerate(aux_offsets) for m in [np.isfinite(sv[:, i])]}
     if cand and len(va["y"]):  # the saved candidate heads against the validation turns' search records
         model.meta.update(cand_metrics(model.p, va, cand["table"]))
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    model.save(args.out)
+    phases.add("score", time.perf_counter() - t_score)
+    with phases("export"):
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        model.save(args.out)
     print(f"saved {args.out}")
+    print(phases.line(), flush=True)
     print(json.dumps({k: v for k, v in model.meta.items() if k != "sources"}))
     if ledger_path:
         _append_ledger(args, ledger_path, tags, started, cpu, memory, tr, va, len(t["y"]), load_s, train_s, device,
                        best, kept, pred if len(va["y"]) else None, given_dirs, gen_weights, ev, pred_e,
-                       data["heldout"], data.get("sample_window"))
+                       data["heldout"], data.get("sample_window"), phases.rounded())
 
 
 def _append_ledger(args, path, tags, started, cpu, memory, tr, va, n_train, load_s, train_s, device, best, kept,
-                   pred, given_dirs, gen_weights, ev, pred_e, manifests, window=None) -> None:
+                   pred, given_dirs, gen_weights, ev, pred_e, manifests, window=None, phase_seconds=None) -> None:
     """One `train` row for the metrics ledger (yomibench.ledger); never fails the run."""
     try:
         from yomibench.valuenet import FEATURES
@@ -1618,6 +1658,7 @@ def _append_ledger(args, path, tags, started, cpu, memory, tr, va, n_train, load
             "eval_phases": ledger.phase_mse(ev["phase"], ev["outcome"], ev["baseline"], pred_e, constant)
             if pred_e is not None else None,
             "load_seconds": round(load_s, 2), "train_seconds": round(train_s, 2), "epochs": args.epochs,
+            **({"phase_seconds": phase_seconds} if phase_seconds is not None else {}),
             "best_epoch": best[2], "best_val_mse": round(best[0], 5) if va["games"] else None, "device": device,
             "select": args.select, "kept_epoch": kept[2], "val_mse": round(kept[0], 5) if va["games"] else None,
             "aux_hp_weight": args.aux_hp_weight, "residual_hp": args.residual_hp,

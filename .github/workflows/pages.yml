@@ -1,13 +1,15 @@
 # Build the site from every release's files (gen-N.json and its videos) and the Arena's data, and deploy it to
-# GitHub Pages. Runs when a release is published (a promotion), when Arena results, the site or the docs change on
-# main, and by hand. No video is ever committed to the repository: they live on the releases.
+# GitHub Pages. Runs when Arena results, the site, the docs or this workflow change on main, and by hand. A published
+# release (a promotion) starts a run on main: Pages serves only deployments from its source branch, so a deploy from
+# the release's tag would succeed and never show. No video is ever committed to the repository: they live on the
+# releases.
 name: site
 on:
   release:
     types: [published]
   push:
     branches: [main]
-    paths: ["arena/**", "site/**", "docs/**"]
+    paths: ["arena/**", "site/**", "docs/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,7 +19,18 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
+  redeploy:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Build and deploy from main (it downloads every release, this one included)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run site --repo "$GITHUB_REPOSITORY" --ref "${{ github.event.repository.default_branch }}"
   build:
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
