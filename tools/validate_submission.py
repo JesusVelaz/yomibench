@@ -102,7 +102,7 @@ def check_entry(entry: object, author: str | None = None, entered: list | None =
     elif RESERVED.match(name):
         bad.append(f"name: {q(name)} is reserved (house generations, built-in bots and device names)")
     if not isinstance(owner, str) or not OWNER.match(owner):
-        bad.append("owner: your GitHub login")
+        bad.append("owner: your GitHub username (the name in github.com/USERNAME)")
     elif author is not None and owner.casefold() != author.casefold():
         bad.append(f"owner: {q(owner)} isn't this issue's author ({q(author)}); a bot is entered by its owner")
     sha = entry.get("bundle_sha256")

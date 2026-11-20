@@ -319,6 +319,27 @@ def tile(value, name, sub="", big=False) -> str:
             f'<span class="tval">{value}</span>{f"<span class=tsub>{sub}</span>" if sub else ""}</div>')
 
 
+COPY_ICON = ('<svg viewBox="0 0 24 24" aria-hidden="true"><g class="cp"><rect x="8" y="8" width="14" height="14" rx="2"/>'
+             '<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></g><path class="ok" d="M5 12l5 5L20 7"/></svg>')
+
+
+def copy_button(target: str, label: str, text: str | None = None, small: bool = False,
+                native_title: bool | None = None) -> str:
+    """An icon copy button (COPY wires it). It copies `text` when given, else the text of the element `target`.
+    A button inside a box that clips overflow (the Get started command boxes) can't show the CSS label, so it gets a
+    native title instead; that's the default for small buttons."""
+    extra = f' data-copy-text="{esc(text)}"' if text is not None else ""
+    if small if native_title is None else native_title:
+        extra += f' title="{esc(label)}"'
+    return (f'<button type="button" class="iconbtn{" sm" if small else ""}" data-copy="{target}"{extra} '
+            f'aria-label="{esc(label)}" data-tip="{esc(label)}">{COPY_ICON}</button>')
+
+
+def one_line(cmd: str) -> str:
+    """Commands with their `\\` line continuations joined, so they paste into PowerShell as well as a POSIX shell."""
+    return re.sub(r"[ \t]*\\\n[ \t]*", " ", cmd)
+
+
 def meter(x) -> str:
     w = 0 if x is None else max(0, min(100, round(100 * x)))
     return f'<span class="meter" aria-hidden="true"><i style="width:{w}%"></i></span>'
@@ -817,11 +838,13 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
               "/lab/training/", "Training guide", "uv run python tools/train_loop.py \\\n  --out ~/.yomibench/train"),
              ("Submit it", "Pack your best net (named in OUT/best.json) into a bundle and enter it in the Arena. The "
               "checks are live; rated matches open soon.", "/submit/", "How to submit",
-              "uv run yomibench bundle pack \\\n  --name my-bot-1 \\\n  --owner YOUR-LOGIN \\\n  --value BEST_MODEL.npz")]
+              "uv run yomibench bundle pack \\\n  --name my-bot-1 \\\n  --owner YOUR-GITHUB-USERNAME \\\n  --value BEST_MODEL.npz")]
     body = ('<header class="pagehead"><p class="eyebrow">Get started</p><h1>Train a bot and enter it</h1><p class="lead">'
             'Three steps from your copy of the game to a bot in the Arena.</p></header><ol class="steps">'
-            + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd"><code>{esc(c)}</code></pre>'
-                      f'<a class="more" href="{L(h)}">{esc(lk)} →</a></li>' for t, d, h, lk, c in steps) + "</ol>")
+            + "".join(f'<li><h2>{esc(t)}</h2><p>{esc(d)}</p><pre class="cmd" id="step-{i}">'
+                      f'{copy_button(f"step-{i}", "Copy commands", one_line(c), small=True)}<code>{esc(c)}</code></pre>'
+                      f'<a class="more" href="{L(h)}">{esc(lk)} →</a></li>'
+                      for i, (t, d, h, lk, c) in enumerate(steps, 1)) + "</ol>")
     routes["/get-started/"] = ("Get started", "start", body)
 
     # docs and write-ups -----------------------------------------------------------------------------------------
@@ -838,8 +861,24 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
             return f"]({REPO}/blob/main/docs/{m.group(1)}{m.group(2) or ''})"  # a doc that isn't a site page
         return re.sub(r"\]\((?:\.\./)?(?:docs/)?([A-Z]+\.md)(#[\w-]+)?\)", link, t)
 
-    def doc_html(text):  # tables scroll inside their own box
-        return md(fix(text)).replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
+    def with_copy(page: str, key: str) -> str:
+        """Every code block gets a copy icon, in a wrapper outside the block's own scroll box, so the icon stays put
+        when a long line scrolls and its label isn't clipped. It copies the block's text, with `\\` continuations
+        joined (one_line)."""
+        n = 0
+
+        def box(m):
+            nonlocal n
+            n += 1
+            pid = f"code-{key}-{n}"
+            text = html.unescape(re.sub(r"<[^>]+>", "", m.group(2))).rstrip("\n")
+            return (f'<div class="codebox"><pre id="{pid}">{m.group(1)}{m.group(2)}</code></pre>'
+                    f'{copy_button(pid, "Copy", one_line(text), small=True, native_title=False)}</div>')
+        return re.sub(r"<pre>(<code[^>]*>)(.*?)</code></pre>", box, page, flags=re.S)
+
+    def doc_html(text, copy_key=""):  # tables scroll inside their own box
+        page = md(fix(text)).replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
+        return with_copy(page, copy_key) if copy_key else page
 
     sections = {"/get-started/setup/": "start", "/lab/training/": "lab", "/lab/how-it-works/": "lab", "/play/": "play",
                 "/lab/mod/": "lab", "/submit/": "submit"}
@@ -862,7 +901,8 @@ def build(releases: Path, docs: Path, out: Path | None, arena: Path | None = Non
         if path == "/get-started/setup/":
             top = f'<nav class="crumbs"><a href="{L("/get-started/")}">← Get started</a></nav>'
         sub = subnav(path) if sections[path] == "lab" else ""
-        routes[path] = (title, sections[path], f'{sub}{top}<article class="doc">{doc_html(text)}</article>')
+        copy_key = {"/submit/": "submit", "/play/": "play"}.get(path, "")  # the pages people copy commands from
+        routes[path] = (title, sections[path], f'{sub}{top}<article class="doc">{doc_html(text, copy_key)}</article>')
     for w in writeups:
         routes[f"/lab/writeups/{w.stem.lower()}/"] = (
             w.stem.replace("-", " ").title(), "lab",
@@ -910,6 +950,19 @@ FOOTER = ('<footer class="foot"><div class="footin"><p><b>yomibench</b> is open 
 MOTION = ('<script>function yomiPlay(){if(!matchMedia("(prefers-reduced-motion: reduce)").matches)'
           'document.querySelectorAll("video[data-autoplay]").forEach(function(v){v.muted=true;v.play().catch(function()'
           '{})})}yomiPlay()</script>')
+# Copy buttons: button[data-copy] names the element whose text it copies, unless data-copy-text gives the exact text
+# (a command box's one-line form). Delegated, so it also works on the one-file preview's routes; where the clipboard
+# API isn't available (a page opened from a file), it copies through a hidden text box.
+COPY = ('<script>document.addEventListener("click",function(e){var b=e.target.closest("button[data-copy]");if(!b)return;'
+        'var t=document.getElementById(b.dataset.copy);if(!t)return;var x=b.dataset.copyText||t.textContent;'
+        'function done(ok){var o=b.dataset.label||b.getAttribute("aria-label"),m=ok?"Copied":"Copy failed";'
+        'b.dataset.label=o;b.classList.remove("done","fail");b.classList.add(ok?"done":"fail");b.dataset.tip=m;'
+        'b.setAttribute("aria-label",m);clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove("done","fail");'
+        'b.dataset.tip=o;b.setAttribute("aria-label",o)},1600)}function pick(){var a=document.createElement("textarea");'
+        'a.value=x;a.setAttribute("readonly","");a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);'
+        'a.select();var ok=false;try{ok=document.execCommand("copy")}catch(_){}a.remove();done(ok)}'
+        'if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(x).then(function(){done(true)},'
+        'pick)}else{pick()}})</script>')
 
 
 def write_pages(out: Path, routes, notfound: str, site_url: str) -> None:
@@ -926,7 +979,7 @@ def write_pages(out: Path, routes, notfound: str, site_url: str) -> None:
                 + f'<link rel="icon" href="{ICON}"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
                 f'<link rel="stylesheet" href="{FONTS}"><link rel="stylesheet" href="{css}"></head><body>')
         page = (head + HEADER.format(home=L("/"), nav=nav_html(section)) + f'<main id="main" class="wrap">{body}</main>'
-                + FOOTER + MOTION + "</body></html>")
+                + FOOTER + MOTION + COPY + "</body></html>")
         return page
 
     for path, (title, section, body) in routes.items():
@@ -983,7 +1036,7 @@ def write_spa(spa: Path, routes, notfound: str, title: str = "yomibench", head: 
             f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="{FONTS}">'
             '<link rel="stylesheet" href="style.css">\n'
             + HEADER.format(home=L("/"), nav=nav_html("arena")) + '<main id="main" class="wrap"></main>' + FOOTER
-            + tpl + MOTION + SPA_SCRIPT)
+            + tpl + MOTION + COPY + SPA_SCRIPT)
     spa.write_text(resolve(page, "/", True), encoding="utf-8")
 
 

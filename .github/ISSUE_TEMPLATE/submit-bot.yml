@@ -25,10 +25,10 @@ body:
     id: entry
     attributes:
       label: Entry
-      description: Your entry. The owner must be your GitHub login. Settings may only narrow your bot's search (see the guide).
+      description: Your entry. The owner must be your GitHub username (the name in github.com/USERNAME, not your display name). Settings may only narrow your bot's search (see the guide).
       render: json
       value: |
-        {"name": "my-bot-1", "owner": "your-github-login", "bundle_sha256": "<sha256 of the zip>", "candidate_set": 6, "settings": {}}
+        {"name": "my-bot-1", "owner": "your-github-username", "bundle_sha256": "<sha256 of the zip>", "candidate_set": 6, "settings": {}}
     validations:
       required: true
   - type: textarea

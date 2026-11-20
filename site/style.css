@@ -218,6 +218,24 @@ details.panel[open] > summary { margin-bottom: var(--s3); }
        font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .more { font-weight: 600; font-size: var(--fs-sm); text-decoration: none; }
 
+/* copy button: an icon (two overlapping squares) that turns into a check once copied, with a hover label */
+.iconbtn { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: var(--r-sm);
+           border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); cursor: pointer; position: relative; }
+.iconbtn:hover { color: var(--accent-ink); border-color: var(--accent); }
+.iconbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.iconbtn .ok { display: none; }
+.iconbtn.done { color: var(--win); border-color: var(--win); }
+.iconbtn.done .cp { display: none; }
+.iconbtn.done .ok { display: block; }
+.iconbtn.fail { color: var(--loss); border-color: var(--loss); }
+.iconbtn::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); right: 0; white-space: nowrap; font: 500 var(--fs-xs) var(--body);
+                  padding: 3px 8px; border-radius: 4px; background: var(--ink); color: var(--bg); opacity: 0; pointer-events: none; transition: opacity 0.12s; }
+.iconbtn:hover::after, .iconbtn:focus-visible::after, .iconbtn.done::after, .iconbtn.fail::after { opacity: 1; }
+.iconbtn.sm { width: 28px; height: 28px; }
+.iconbtn.sm svg { width: 14px; height: 14px; }
+.steps .cmd .iconbtn { float: right; margin: -4px -6px 4px 10px; }  /* beside the first line only; the lines below keep the full width */
+.cmd .iconbtn::after { display: none; }  /* the command box clips overflow, so its label would show as a thin sliver; the button has a native title instead */
+
 /* docs */
 .doc { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s5) clamp(16px, 4vw, 40px) var(--s6); }
 .doc > * { max-width: 72ch; }
@@ -227,6 +245,11 @@ details.panel[open] > summary { margin-bottom: var(--s3); }
 .doc p, .doc ul, .doc ol { margin: 0 0 var(--s3); color: var(--ink-2); }
 .doc li { margin: 4px 0; }
 .doc pre { max-width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 12px 14px; overflow-x: auto; font-size: 0.82rem; }
+/* a code block with a copy icon: the icon sits in the wrapper, over the block's top right, outside its scroll box */
+.codebox { position: relative; margin: var(--s3) 0 var(--s4); }
+.doc > .codebox { max-width: 100%; }
+.codebox > pre { margin: 0; padding-right: 48px; }
+.codebox > .iconbtn { position: absolute; top: 7px; right: 7px; }
 .doc :not(pre) > code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0.05em 0.35em; font-size: 0.86em; overflow-wrap: anywhere; }
 .doc .tablewrap { margin: var(--s3) 0 var(--s4); border-radius: var(--r-sm); }
 .doc table { margin: 0; }
