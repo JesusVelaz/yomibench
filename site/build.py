@@ -324,35 +324,49 @@ def tile(value, name, sub="", big=False) -> str:
 PROMPT_START = f"""Help me train a bot for yomibench and enter it in the Arena. yomibench is an open-source bot arena \
 for the game Your Only Move Is HUSTLE: {REPO}
 
-Work from the project's own guides; don't guess commands. Clone the repository, then read README.md, \
-docs/SETUP.md, docs/TRAINING.md and docs/SUBMIT.md.
+Work from the project's own guides; don't guess commands.
 
-1. Check what I need: the game installed through Steam (docs/SETUP.md says which versions and systems work), \
-Python 3.11 or newer, uv and git. Tell me what's missing and how to install it.
-2. Install with `uv sync --extra train --extra test` and run the tests (`uv run pytest -q`). Tell me if anything \
+1. Check what I need: git, Python 3.11 or newer, uv, and the game installed through Steam (the repository's \
+docs/SETUP.md says which versions and systems work). Tell me what's missing and how to install it.
+2. Clone the repository, then change into the clone as a separate command (Windows PowerShell may not run two \
+commands joined with &&). Read README.md, docs/SETUP.md, docs/TRAINING.md and docs/SUBMIT.md.
+3. Install with `uv sync --extra train --extra test` and run the tests (`uv run pytest -q`). Tell me if anything \
 fails.
-3. Before you start training, tell me how much of my PC it will use (cores and memory) and roughly how long it \
-runs, and wait for my go-ahead. Training runs copies of the game in the background.
-4. When training has a best net (OUT/best.json names it), help me submit it by following docs/SUBMIT.md.
+4. Before you start training, tell me how much of my PC it will use (cores and memory) and roughly how long until \
+it promotes a first model of my own (the loop keeps going until I stop it), and wait for my go-ahead. Training runs \
+copies of the game in the background.
+5. When training has promoted a net of my own (OUT/best.json names it), help me submit it by following \
+docs/SUBMIT.md. If I started from published HustleBot weights, those weights don't count: the Arena refuses them.
 
 Explain each step in plain words. Never ask me for passwords or tokens; I'll sign in to GitHub myself."""
 
 PROMPT_SUBMIT = f"""Help me submit my yomibench bot to the Arena. Work in my clone of {REPO} (clone it if I don't \
-have one) and follow docs/SUBMIT.md exactly; don't guess commands.
+have one) and follow docs/SUBMIT.md exactly; don't guess commands. Run the commands below as written, with \
+`--extra net`: a fresh clone doesn't have the libraries they need.
 
-1. Find my GitHub username: the name in github.com/USERNAME, for the account I'll open the submission from. If the \
-GitHub CLI is signed in, `gh api user --jq .login` prints it. Don't use `git config user.name`; that's a display \
-name, not the username. Ask me only if you can't find it, and tell me which username you're using.
-2. Ask me for a name for my bot (1-40 of a-z 0-9 . _ -, like my-bot-1).
+1. Find my GitHub username: the name in github.com/USERNAME. If the GitHub CLI is signed in, \
+`gh api user --jq .login` prints it. Don't use `git config user.name`; that's a display name, not the username. \
+Ask me only if you can't find it. Tell me which username you're using, and that I must open the submission form \
+signed in to GitHub as that account, or the check refuses it.
+2. Ask me for a name for my bot, like my-bot-1: 1-40 of a-z 0-9 . _ -, starting and ending with a letter or digit. \
+Before packing, check it isn't reserved or already taken (the rules are in tools/validate_submission.py; entered \
+bots are in arena/bots.json).
 3. Find my best net: the training loop names it in OUT/best.json, in its "model" field (OUT is ~/.yomibench/train \
-unless I chose another --out). Ask me if you can't find it.
-4. Pack it: `uv run yomibench bundle pack --name BOT-NAME --owner GITHUB-USERNAME --value PATH/TO/MODEL.npz`. Add \
-`--policy` only if I have a policy net.
-5. Write entry.json with name, owner, bundle_sha256 (the zip's sha256, lowercase), candidate_set (from \
-arena/spec.json), "settings": {{}} and, if I want, notes.
-6. Run `uv run python tools/validate_submission.py entry.json BOT-NAME.zip` and fix anything it reports.
-7. Then tell me exactly what to paste into the submission form ({FORM}) and which file to drag in. Don't open the \
-issue yourself.
+unless I chose another --out). It must be a net my own training promoted: if I started from published HustleBot \
+weights (--start-from), generation 1 is those weights, and the Arena refuses them. Ask me if you can't find it.
+4. Pack it: `uv run --extra net yomibench bundle pack --name BOT-NAME --owner GITHUB-USERNAME --value \
+"PATH/TO/MODEL.npz"`. Add `--policy "PATH/TO/POLICY.npz"` only if I have a policy net. This writes BOT-NAME.zip \
+in the current folder.
+5. Write entry.json, saved as UTF-8 without a BOM (Windows PowerShell adds one by default, and the check can't read \
+the file then), with: name; owner; bundle_sha256 (the sha256 of the finished zip file, lowercase, not the short \
+digest the pack command prints); candidate_set (the set my nets were trained on: the training loop's \
+--candidate-set, 6 unless I changed it; it must equal candidate_set in arena/spec.json, so tell me if it doesn't); \
+"settings": {{}}; and, if I want, notes (up to 500 characters).
+6. Run `uv run --extra net python tools/validate_submission.py entry.json BOT-NAME.zip` and fix anything it \
+reports.
+7. Then give me the submission form link ({FORM}), exactly what to paste into Bot name and Entry, and which zip to \
+drag into Bundle. Remind me to read the form's two required checkboxes and tick them only if they're true. Don't \
+open the issue yourself.
 
 Explain each step in plain words. Never ask me for passwords or tokens."""
 
